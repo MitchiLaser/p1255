@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ps1255"
+description = "PEakTech PS1255 Oscilloscope Tools"
+# the list of authors is ordered alphabetically by last name
+authors = [
+	{ name="Michael Hohenstein", email="michael@hohenste.in" },
+]
+readme = "README.md"
+requires-python= ">=3.10"
+keywords = ["Oscilloscope"]
+version="0.0.1"
+license = {text = "GPL3"}
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "Topic :: Education",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Physics",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+        "iminuit",
+        "NumPy",
+        "Numdifftools",
+        "Scipy",
+        "tabulate",
+        "matplotlib>=3.4",
+        "PyYaml",
+        "six",
+        "funcsigs",
+        "SymPy",
+]
+
+[project.urls]
+"Homepage" = ""
+"Repository" = ""
+
+#[project.scripts]
+#kafe2go = "kafe2.fit.tools.kafe2go:kafe2go"
+
+[tool.black]
+line-length = 150
+
+[tool.isort]
+profile = "black"
+
