@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ps1255"
-description = "PEakTech PS1255 Oscilloscope Tools"
+name = "p1255"
+description = "PeakTech P1255 Oscilloscope Tool"
 # the list of authors is ordered alphabetically by last name
 authors = [
 	{ name="Michael Hohenstein", email="michael@hohenste.in" },
@@ -15,7 +15,7 @@ keywords = ["Oscilloscope"]
 version="0.0.1"
 license = {text = "GPL3"}
 classifiers = [
-        "Development Status :: 5 - Production/Stable",
+        #"Development Status :: 5 - Production/Stable",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
         "Topic :: Education",
@@ -26,26 +26,15 @@ classifiers = [
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-        "iminuit",
         "NumPy",
-        "Numdifftools",
-        "Scipy",
-        "tabulate",
-        "matplotlib>=3.4",
-        "PyYaml",
-        "six",
-        "funcsigs",
-        "SymPy",
 ]
 
 [project.urls]
-"Homepage" = ""
-"Repository" = ""
-
-#[project.scripts]
-#kafe2go = "kafe2.fit.tools.kafe2go:kafe2go"
+"Homepage" = "https://github.com/MitchiLaser/p1255"
+"Repository" = "https://github.com/MitchiLaser/p1255"
 
 [tool.black]
 line-length = 150
