@@ -31,11 +31,11 @@ def capture(address: ipaddress.IPv4Address, port: int = 3000) -> bytearray:
 
     # Validate ip Address
     if not isinstance(address, ipaddress.IPv4Address):
-        raise ValueError("address must be an IPv4 address")
+        raise ValueError(f"Not a valid IPv4 address: {str(address)}")
 
     # Validate port
     if not isinstance(port, int) or not (0 < port < 65536):
-        raise ValueError("port must be an integer between 0 and 65535")
+        raise ValueError(f"Not a valid port number, must be in between 0 and 65534: {str(port)}")
 
     # Create a TCP/IPv4 Socket
     sock = socket.socket(
@@ -52,16 +52,15 @@ def capture(address: ipaddress.IPv4Address, port: int = 3000) -> bytearray:
     # be comparable to my grandma sending a fax over her 56k modem
     sock.setblocking(True)
 
-    # Create a first buffer to store the payload length
-    payload = bytearray(2)
-
     # First information that is sent is the length of the dataset
     # This information is send as a 2 bytes integer, unsigned short little endian (<H)
-    read = sock.recv_into(payload, 2)
+    read = sock.recv_into(payload := bytearray(2), 2)
     if read != 2:  # make sure we read 2 bytes
         raise RuntimeError("Length of dataset is not valid")
     # calculate the total length of the whole dataset
-    length = struct.unpack("<H", payload)[0] + 12  # The 12 bytes = 2 bytes length information + 10 bytes header
+    # I don't know why but the length of the dataset is 12 bytes longer than the length of the payload
+    # This was figured out by trial and error
+    length = struct.unpack("<H", payload)[0] + 12
 
     # create the buffer to store the whole dataset
     buffer = bytearray(length)
