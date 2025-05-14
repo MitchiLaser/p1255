@@ -28,9 +28,6 @@ classifiers = [
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
 ]
-dependencies = [
-        "NumPy",
-]
 
 [project.urls]
 "Homepage" = "https://github.com/MitchiLaser/p1255"

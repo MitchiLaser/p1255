@@ -1,5 +1,6 @@
 #!/usr/bin/env pyton3
 
+import constants
 import ipaddress
 import socket
 import struct
@@ -60,7 +61,7 @@ def capture(address: ipaddress.IPv4Address, port: int = 3000) -> bytearray:
     # calculate the total length of the whole dataset
     # I don't know why but the length of the dataset is 12 bytes longer than the length of the payload
     # This was figured out by trial and error
-    length = struct.unpack("<H", payload)[0] + 12
+    length = struct.unpack("<H", payload)[0] + constants.LEN_UNKNOWN
 
     # create the buffer to store the whole dataset
     buffer = bytearray(length)
