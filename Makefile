@@ -35,7 +35,7 @@ devenv:
 	@if ! venv/bin/python -c "import p1255" 2>/dev/null; then
 		echo "Installing p1255 in editable mode";
 		. venv/bin/activate;
-		pip install --upgrade -e .[dev];
+		pip install --upgrade -e .;
 	fi
 
 publish: build
