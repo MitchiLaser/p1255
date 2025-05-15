@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import capture
-import constants
-import decode
+from . import capture
+from . import decode
 import ipaddress
 
 

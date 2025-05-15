@@ -36,6 +36,7 @@ devenv:
 		echo "Installing p1255 in editable mode";
 		. venv/bin/activate;
 		pip install --upgrade -e .;
+		pip install --upgrade twine build flake8 black isort;
 	fi
 
 publish: build

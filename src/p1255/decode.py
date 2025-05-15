@@ -1,6 +1,6 @@
 #!/usr/bin/env pyton3
 
-import constants
+from . import constants
 import math
 import struct
 
