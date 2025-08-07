@@ -151,5 +151,9 @@ class Dataset:
                 writer = csv.writer(f)
                 writer.writerow([ch.name for ch in self.channels])
                 writer.writerows(zip(*[ch.data for ch in self.channels]))
+        elif fmt == 'npy':
+            import numpy as np
+            data = {ch.name: ch.data for ch in self.channels}
+            np.save(filename, data)
         else:
-            raise ValueError("Unsupported format. Use 'csv' or 'json'.")
+            raise ValueError("Unsupported format. Use 'csv', 'json' or 'npy'.")

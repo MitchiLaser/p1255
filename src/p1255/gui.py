@@ -121,7 +121,7 @@ class MainWindow(QWidget):
             return
         
         filename = QFileDialog.getSaveFileName(
-            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json)"
+            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json);;Numpy Files (*.npy)"
         )[0]
         if not filename:
             return
@@ -130,3 +130,5 @@ class MainWindow(QWidget):
             self.current_dataset.save(filename, fmt='csv')
         elif filename.endswith('.json'):
             self.current_dataset.save(filename, fmt='json')
+        elif filename.endswith('.npy'):
+            self.current_dataset.save(filename, fmt='npy')
