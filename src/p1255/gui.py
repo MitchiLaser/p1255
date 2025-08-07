@@ -1,8 +1,15 @@
 import sys
 import random
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLineEdit, QLabel, QFileDialog, QGridLayout
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLineEdit,
+    QLabel,
+    QFileDialog,
+    QGridLayout,
 )
 from PyQt5.QtCore import QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -10,6 +17,7 @@ from matplotlib.figure import Figure
 import os
 from p1255.p1255 import P1255
 import ipaddress
+
 
 class PlotWidget(FigureCanvas):
     def __init__(self):
@@ -29,21 +37,20 @@ class PlotWidget(FigureCanvas):
             self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
         self.draw()
 
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        
+
         self.setWindowTitle("P1255 Oscilloscope GUI")
         self.plot_widget = PlotWidget()
         self.timer = None
         self.saving_directory = os.getcwd()
 
         self.init_ui()
-        
+
         self.p1255 = P1255()
         self.current_dataset = None
-        
-        
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -69,19 +76,21 @@ class MainWindow(QWidget):
         controls.addWidget(self.connect_button, 0, 4)
 
         # Run and Capture Buttons
+        button_layout = QHBoxLayout()
         self.run_button = QPushButton("Run Continuously")
         self.run_button.setCheckable(True)
         self.run_button.clicked.connect(self.toggle_run)
-        controls.addWidget(self.run_button, 1, 0)
+        button_layout.addWidget(self.run_button)
 
         self.capture_button = QPushButton("Capture Single")
         self.capture_button.clicked.connect(self.capture_single)
-        controls.addWidget(self.capture_button, 1, 1)
-        
-        # Save Button
+        button_layout.addWidget(self.capture_button)
+
         self.save_button = QPushButton("Save Data")
         self.save_button.clicked.connect(self.save_data)
-        controls.addWidget(self.save_button, 1, 2)
+        button_layout.addWidget(self.save_button)
+
+        controls.addLayout(button_layout, 1, 0, 1, 5)
 
         layout.addLayout(controls)
 
@@ -91,7 +100,6 @@ class MainWindow(QWidget):
         print(f"Connecting to {ip}:{port}...")
         self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
         self.connect_button.setText("Connected")
-
 
     def toggle_run(self, checked):
         if checked:
@@ -114,12 +122,12 @@ class MainWindow(QWidget):
     def capture_single(self):
         self.current_dataset = self.p1255.capture()
         self.plot_widget.update_plot(self.current_dataset)
-        
+
     def save_data(self):
         if not self.current_dataset:
             print("No data to save.")
             return
-        
+
         filename = QFileDialog.getSaveFileName(
             self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json);;Numpy Files (*.npy)"
         )[0]
