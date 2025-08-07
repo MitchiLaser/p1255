@@ -1,10 +1,70 @@
-#!/usr/bin/env pyton3
-
 from . import constants
-import math
+import ipaddress
+import socket
 import struct
+import math
 
+class P1255:
+    def __init__(self):
+        self.sock = None
+    
+    def connect(self, address, port=3000):
+        """Connect to the P1255 oscilloscope at the specified address and port."""
+        if not isinstance(address, ipaddress.IPv4Address):
+            raise ValueError(f"Not a valid IPv4 address: {str(address)}")
 
+        # Validate port
+        if not isinstance(port, int) or not (0 < port < 65536):
+            raise ValueError(f"Not a valid port number, must be in between 0 and 65534: {str(port)}")
+
+        # Create a TCP/IPv4 Socket
+        self.sock = socket.socket(
+            socket.AF_INET,  # Address family: IPv4
+            socket.SOCK_STREAM,  # Socket type: TCP
+        )
+        
+
+        # Connect to the client device
+        self.sock.connect((str(address), port))
+        
+    def capture(self):
+        if self.sock is None:
+            return None
+        # Send command to start streaming of binary data
+        self.sock.send(b"STARTBIN")
+        # use a dumb blocking socket
+        # This makes implementation easier but performance might
+        # be comparable to my grandma sending a fax over her 56k modem
+        self.sock.setblocking(True)
+
+        # First information that is sent is the length of the dataset
+        # This information is send as a 2 bytes integer, unsigned short little endian (<H)
+        read = self.sock.recv_into(payload := bytearray(2), 2)
+        if read != 2:  # make sure we read 2 bytes
+            raise RuntimeError("Length of dataset is not valid")
+        # calculate the total length of the whole dataset
+        # I don't know why but the length of the dataset is 12 bytes longer than the length of the payload
+        # This was figured out by trial and error
+        length = struct.unpack("<H", payload)[0] + constants.LEN_UNKNOWN
+
+        # create the buffer to store the whole dataset
+        buffer = bytearray(length)
+        buffer[:2] = payload  # keep the length information in the buffer
+
+        # read the rest of the dataset
+        while read < length:
+            read += self.sock.recv_into(memoryview(buffer)[read:], length - read)  # memoryview needed to avoid copying the buffer
+            
+        return Dataset(buffer)
+            
+    def disconnect(self):
+        """Disconnect from the P1255 oscilloscope."""
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+        
+        
+        
 class Dataset:
 
     class Channel:
@@ -77,3 +137,19 @@ class Dataset:
                     memoryview(buffer)[constants.LEN_HEADER + ch * channel_data_size:constants.LEN_HEADER + (ch + 1) * channel_data_size]
                 )
             )
+            
+    def save(self, filename, fmt='csv'):
+        """Save the dataset to a file in the specified format."""
+        if fmt == 'json':
+            import json
+            data = [{"name": ch.name, "timescale": ch.timescale, "data": ch.data} for ch in self.channels]
+            with open(filename, 'w') as f:
+                json.dump(data, f)
+        elif fmt == 'csv':
+            import csv
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([ch.name for ch in self.channels])
+                writer.writerows(zip(*[ch.data for ch in self.channels]))
+        else:
+            raise ValueError("Unsupported format. Use 'csv' or 'json'.")
