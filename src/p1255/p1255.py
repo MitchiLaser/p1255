@@ -3,6 +3,7 @@ import ipaddress
 import socket
 import struct
 import math
+import numpy as np
 
 class P1255:
     def __init__(self):
@@ -11,7 +12,10 @@ class P1255:
     def connect(self, address, port=3000):
         """Connect to the P1255 oscilloscope at the specified address and port."""
         if not isinstance(address, ipaddress.IPv4Address):
-            raise ValueError(f"Not a valid IPv4 address: {str(address)}")
+            try:
+                address = ipaddress.IPv4Address(address)
+            except ipaddress.AddressValueError:
+                raise ValueError(f"Not a valid IPv4 address: {str(address)}")
 
         # Validate port
         if not isinstance(port, int) or not (0 < port < 65536):
@@ -86,21 +90,22 @@ class Dataset:
             # Voltage scaling information
             def calc_voltscale(number):
                 number += 4
-                exp = math.floor(number / 3)
+                exp = math.floor(number / 3) - 1 # dont know why -1
                 mant = {0: 1, 1: 2, 2: 5}[number % 3]
                 volts_per_div = mant * (10 ** exp)
                 return volts_per_div * 1e-3  # convert from millivolts to volts
             self.voltscale = calc_voltscale(self.buffer[constants.CHANNEL_VOLTSCALE])
 
-            # Voltage shift
+            # Voltage shift # Julian: I think this is the offset in 1/25 of a div.
             self.volts_offset = struct.unpack(
                 '<l',
                 self.buffer[constants.CHANNEL_OFFSET:constants.CHANNEL_OFFSET + 4]
             )[0]
+            
 
             # Get the data points from the buffer
             # '<h' corresponds to little endian signed short, times the number of samples
-            self.data = [
+            self.data = np.array([
                 (x / 128) * 5 * self.voltscale for x in  # apply this transformation to all data points.
                 # The (x / 128) * 5 transforms the data into the unit on the screen,
                 # the self.voltscale factor scales it to volts.
@@ -108,7 +113,12 @@ class Dataset:
                     '<' + 'h' * ((len(self.buffer) - constants.BEGIN_CHANNEL_DATA) // 2),  # specify data format
                     self.buffer[constants.BEGIN_CHANNEL_DATA:]  # specify the slice of the dataset
                 )
-            ]
+            ])
+            
+            self.data_divisions = self.data / self.voltscale + self.volts_offset / 25
+            
+            
+            
 
     def __init__(self, buffer: bytearray) -> None:
         self._buffer = buffer
@@ -152,7 +162,6 @@ class Dataset:
                 writer.writerow([ch.name for ch in self.channels])
                 writer.writerows(zip(*[ch.data for ch in self.channels]))
         elif fmt == 'npy':
-            import numpy as np
             data = {ch.name: ch.data for ch in self.channels}
             np.save(filename, data)
         else:
