@@ -29,8 +29,18 @@ class P1255:
         
 
         # Connect to the client device
-        self.sock.connect((str(address), port))
-        
+        try:
+            self.sock.connect((str(address), port))
+        except socket.gaierror:
+            print(f"Address resolution error for {address}:{port}.")
+            self.sock.close()
+            self.sock = None
+            return False
+        except ConnectionRefusedError:
+            print(f"Connection refused by {address}:{port}.")
+            self.sock.close()
+            self.sock = None
+            return False
     def capture(self):
         if self.sock is None:
             return None

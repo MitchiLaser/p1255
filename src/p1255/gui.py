@@ -115,7 +115,9 @@ class MainWindow(QWidget):
         ip = self.ip_input.text()
         port = self.port_input.text()
         print(f"Connecting to {ip}:{port}...")
-        self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
+        c = self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
+        if not c:
+            return
         self.connect_button.setText("Connected")
 
     def toggle_run(self, checked):
