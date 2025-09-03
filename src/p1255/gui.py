@@ -136,13 +136,19 @@ class MainWindow(QWidget):
         ip = self.ip_input.text()
         port = self.port_input.text()
         print(f"Connecting to {ip}:{port}...")
-        c = self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
-        if not c:
-            QMessageBox.critical(self, "Connection Error", "Failed to connect to the oscilloscope.")
+        try: 
+            self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
+        except Exception as e:
+            QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
             return
         self.connect_button.setText("Connected")
+        
+    def disconnect(self):
+        self.p1255.disconnect()
+        self.connect_button.setText("Connect")
 
     def toggle_run(self, checked):
+        self.run_button.setChecked(checked) # this is in case the button gets unchecked programmatically
         if checked:
             self.run_button.setText("Stop")
             self.start_updating()
@@ -166,8 +172,17 @@ class MainWindow(QWidget):
             self.timer = None
 
     def capture_single(self):
-        self.current_dataset = self.p1255.capture()
-        self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
+        try:
+            self.current_dataset = self.p1255.capture()
+            self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
+        except ConnectionError:
+            QMessageBox.critical(self, "Connection Error", "Connection lost.")
+            self.toggle_run(False)
+            self.disconnect()
+        except Exception as e:
+            QMessageBox.critical(self, "Capture Error", f"Failed to capture data: {e}")
+            self.toggle_run(False)
+            self.disconnect()
 
     def save_data(self):
         if not self.current_dataset:

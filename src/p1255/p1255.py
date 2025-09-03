@@ -27,50 +27,43 @@ class P1255:
             socket.SOCK_STREAM,  # Socket type: TCP
         )
         
-
+        self.sock.settimeout(1)  # 1 second timeout
         # Connect to the client device
         try:
+            
             self.sock.connect((str(address), port))
-        except socket.gaierror:
-            print(f"Address resolution error for {address}:{port}.")
+        except Exception as e:
             self.sock.close()
             self.sock = None
-            return False
-        except ConnectionRefusedError:
-            print(f"Connection refused by {address}:{port}.")
-            self.sock.close()
-            self.sock = None
-            return False
+            raise e
+        return True
     def capture(self):
         if self.sock is None:
             return None
-        # Send command to start streaming of binary data
-        self.sock.send(b"STARTBIN")
-        # use a dumb blocking socket
-        # This makes implementation easier but performance might
-        # be comparable to my grandma sending a fax over her 56k modem
-        self.sock.setblocking(True)
+        try:
+            # Send command to start streaming of binary data
+            self.sock.send(b"STARTBIN")
+            self.sock.settimeout(1) # 1 second timeout
 
-        # First information that is sent is the length of the dataset
-        # This information is send as a 2 bytes integer, unsigned short little endian (<H)
-        read = self.sock.recv_into(payload := bytearray(2), 2)
-        if read != 2:  # make sure we read 2 bytes
-            raise RuntimeError("Length of dataset is not valid")
-        # calculate the total length of the whole dataset
-        # I don't know why but the length of the dataset is 12 bytes longer than the length of the payload
-        # This was figured out by trial and error
-        length = struct.unpack("<H", payload)[0] + constants.LEN_UNKNOWN
+            # First information that is sent is the length of the dataset
+            read = self.sock.recv_into(payload := bytearray(2), 2)
+            if read != 2:
+                raise RuntimeError("Length of dataset is not valid")
+            length = struct.unpack("<H", payload)[0] + constants.LEN_UNKNOWN
 
-        # create the buffer to store the whole dataset
-        buffer = bytearray(length)
-        buffer[:2] = payload  # keep the length information in the buffer
+            buffer = bytearray(length)
+            buffer[:2] = payload
 
-        # read the rest of the dataset
-        while read < length:
-            read += self.sock.recv_into(memoryview(buffer)[read:], length - read)  # memoryview needed to avoid copying the buffer
-            
-        return Dataset(buffer)
-            
+            while read < length:
+                n = self.sock.recv_into(memoryview(buffer)[read:], length - read)
+                if n == 0:
+                    raise ConnectionError("Socket connection lost during data capture.")
+                read += n
+
+            return Dataset(buffer)
+        except (TimeoutError, ConnectionError) as e:
+            raise ConnectionError(f"Socket error during capture: {e}")
+
     def disconnect(self):
         """Disconnect from the P1255 oscilloscope."""
         if self.sock:
