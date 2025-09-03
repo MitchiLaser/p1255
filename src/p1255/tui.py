@@ -3,7 +3,10 @@
 import curses
 import ipaddress
 import time
+import threading
 import traceback
+import platform
+import subprocess
 from . import capture
 from . import decode
 
@@ -15,6 +18,7 @@ class plot:
         # create a window for the plot
         self.win = curses.newwin(height, width, y, x)
         self.win.bkgd(curses.color_pair(0))  # black and white
+        self.win.leaveok(True)  # reduce unnecessary cursor moves
         # store metadata for later reuse
         self.x = x
         self.y = y
@@ -43,6 +47,11 @@ class plot:
             text_x = (self.width - self.x_label_width - len(placeholder)) // 2 + self.x_label_width
             text_y = (self.height - 5) // 2 + 2
             self.win.addstr(text_y, text_x, placeholder, curses.A_BOLD)
+        elif self.data is False:
+            placeholder = "Device not reachable"
+            text_x = (self.width - self.x_label_width - len(placeholder)) // 2 + self.x_label_width
+            text_y = (self.height - 5) // 2 + 2
+            self.win.addstr(text_y, text_x, placeholder, curses.A_BOLD)
         else:
             pass
             # TODO: Draw the data
@@ -50,6 +59,11 @@ class plot:
             # redrawing the plot axes
             # plotting the legend
             # plotting the channels
+            # TODO: This is just debugging help
+            placeholder = "There is new data"
+            text_x = (self.width - self.x_label_width - len(placeholder)) // 2 + self.x_label_width
+            text_y = (self.height - 5) // 2 + 2
+            self.win.addstr(text_y, text_x, placeholder, curses.A_BOLD)
         self.win.refresh()
 
     def move(self, new_y, new_x, new_height, new_width):
@@ -62,8 +76,8 @@ class plot:
         self.redraw_win()
 
     def update_data(self, data):
-        pass
-        # TODO
+        self.data = data
+        self.redraw_win()
 
     def foreground(self):
         # move the window to the foreground
@@ -102,7 +116,9 @@ class num_input(movable):
         self.win.refresh()
 
     def activity(self):
+        self.win.move(0, self.cursor)  # show cursor at right position
         curses.curs_set(self.active)  # show or hide the cursor when active
+        self.win.refresh()
 
     def input(self, key: str | int):
         if isinstance(key, str) and key.isdecimal():
@@ -133,7 +149,8 @@ class num_input(movable):
 # separate input field for the IPv4 address
 class ip_input(num_input):
     def __init__(self):
-        super().__init__(length=15, placeholder="192.168.0.1")
+        # super().__init__(length=15, placeholder="172.23.167.73")  # TODO: Re-Enable after testing
+        super().__init__(length=15, placeholder="127.0.0.1")
 
     def redraw(self):
         # Validate the ip addr
@@ -178,7 +195,9 @@ class checkbox(movable):
         }
 
     def activity(self):
+        self.win.move(0, 1)  # cursor always at the same position
         curses.curs_set(True)  # blinking cursor
+        self.win.refresh()
 
     def redraw(self):
         self.win.erase()
@@ -254,6 +273,66 @@ class exit_button(button):
         exit(0)  # Internally this is an exception with no corresponding text
 
 
+class connect_button(button):
+    def __init__(self):
+        self.text = "< Disconnect >"  # need the longer text when initialising the curses window object
+        super().__init__()
+        self.connected = False  # initial state
+
+    def register(self, connection_status, ip_field, port_field, refresh_checkbox):
+        self.connection_status = connection_status
+        self.ip_field = ip_field
+        self.port_field = port_field
+        self.refresh_checkbox = refresh_checkbox
+
+    def trigger(self):
+        self.connected = not self.connected  # toggle connection state
+        self.redraw()  # update text on the screen
+        self.activity()  # cursor is still on the button
+
+        # Here is the main logic to update the data from the oscilloscope
+        # First: Ping the device and check if it is reachable
+        # If yes: Update the connection status and start the capturing loop as a separate thread
+        if ping(self.ip_field.text):
+            self.connection_status.set_status(True)
+        else:
+            self.connection_status.set_status(False)
+            return None  # TODO: Plot-Object should show a "no Data to display" message
+
+        # start a new thread to capture data from the device
+
+        # TODO: Here should be the logic to start the capturing-loop
+        # create a new thread that continuously captures data from the device
+        # and updates the display
+
+    def redraw(self):
+        self.win.erase()
+        self.win.insstr(0, 0, "< Connect >" if not self.connected else "< Disconnect >")
+        self.win.refresh()
+
+    def activity(self):
+        curses.curs_set(False)  # No blinking cursor
+        self.win.erase()
+        self.win.insstr(0, 0, "< Connect >" if not self.connected else "< Disconnect >", curses.A_REVERSE)
+        self.win.refresh()
+
+
+class connection_status(movable):
+    def __init__(self):
+        super().__init__()
+        self.win = curses.newwin(1, 12, self.y, self.x)
+        self.connected = False  # initial state
+
+    def redraw(self):
+        self.win.erase()
+        self.win.insstr(0, 0, "Connected" if self.connected else "Disconnected", curses.color_pair(1 if self.connected else 2))
+        self.win.refresh()
+
+    def set_status(self, status):
+        self.status = status
+        self.redraw()
+
+
 class control:
     def __init__(self, y, x, height, width):
         # store metadata for later reuse
@@ -264,6 +343,7 @@ class control:
 
         # create a window for the control area
         self.win = curses.newwin(height, width, y, x)
+        self.win.leaveok(True)  # reduce unnecessary cursor moves
         self.win.bkgd(curses.color_pair(0))  # clack and white
         self.win.erase()
 
@@ -272,6 +352,7 @@ class control:
         self.interactive = [
             ip_field := ip_input(),
             port_field := num_input(5, "3000"),
+            dis_connect_button := connect_button(),
             refresh_checkbox := checkbox("Automatic Refresh", False),
             save(),
             exit_button(),
@@ -290,16 +371,20 @@ class control:
             "Port:",
             self.interactive[1],
             "",
+            connection_stat := connection_status(),
             self.interactive[2],
-            "",
             self.interactive[3],
+            "",
             self.interactive[4],
+            self.interactive[5],
             "",
             "",
             "Channels:",
             channel_legend(),  # not an interactive element but a more complex output
             "",  # This is just a shitty way to cope with the fact that the previous line is 2 lines long
         ]
+        self.connection_stat = connection_stat
+        dis_connect_button.register(self.connection_stat, self.ip_field, self.port_field, self.refresh_checkbox)
         self.active = 0  # first element is the chosen one
         self.draw_win()
 
@@ -314,6 +399,10 @@ class control:
                 self.win.addstr(i + 1, 2, "CH1", curses.color_pair(2))
                 self.win.addstr(i + 2, 2, "CH2", curses.color_pair(3))
                 i += 1  # skip next line, last print were 2 lines
+            elif isinstance(self.content[i], connection_status):
+                # if it is the connection status, put it into the right position
+                self.content[i].move(self.y + i + 1, self.x + 2)
+                self.content[i].redraw()
             else:
                 # if it is an interactive element, put it into the right position
                 self.content[i].move(self.y + i + 1, self.x + 2)
@@ -322,6 +411,8 @@ class control:
         self.win.refresh()
         for i in self.interactive:
             i.redraw()
+        # re-draw the connection status
+        self.connection_stat.redraw()
         self.interactive[self.active].redraw()  # redraw the active one at last
         self.interactive[self.active].activity()  # show or hide cursor on active field
 
@@ -365,6 +456,8 @@ def tui():
         curses.curs_set(False)  # hide the cursor
         stdscr.keypad(1)  # activate escape sequences
         stdscr.erase()  # clear screen
+        stdscr.nodelay(True)  # do not block on get_wch()
+        stdscr.leaveok(True)  # reduce unnecessary cursor moves
 
         # set background color
         if curses.can_change_color():  # the default black might not be dark enough
@@ -390,10 +483,16 @@ def tui():
         timer = time.time()  # start time for the timer
         while True:  # Event-loop
             # update timer
-            time_new = time.time()
+            time_now = time.time()
+
+            # get user input
+            try:
+                user_input = stdscr.get_wch()  # get user input, non-blocking
+            except curses.error:
+                user_input = None
 
             # handle user input
-            ret = control_obj.input(stdscr.get_wch())
+            ret = control_obj.input(user_input)
 
             # handle a terminal resize event
             if ret == curses.KEY_RESIZE:
@@ -421,20 +520,45 @@ def tui():
                     except curses.error:
                         pass
 
-            # TODO: Event-Loop for handling the user input
-            if control_obj.refresh_checkbox.checked and int(time_new - timer) > 0 and control_obj.ip_field.validate and control_obj.port_field.text.isdecimal():
-                timer = time_new  # reset timer
-                try:  # fetch data
-                    data = decode.Dataset(capture.capture(
-                        ipaddress.IPv4Address(control_obj.ip_field.text),
-                        control_obj.port_field.text,
-                    ))
-                    plot_obj.update_data(data)
+            # when the "update data" checkbox is not checked: reset the timer
+            if not control_obj.refresh_checkbox.checked:
+                timer = time_now
+
+            # Event-Loop for handling the user input
+            if (control_obj.refresh_checkbox.checked) and (int(time_now - timer) > 0) and (control_obj.ip_field.validate()) and (control_obj.port_field.text.isdecimal()):
+                timer = time_now  # reset timer
+                # TODO: Begin of working area
+                try:
+                    # Check if device is reachable and if yes, capture the data and update the display
+                    if ping(control_obj.ip_field.text):
+                        # TODO: The line below is just debug information
+                        stdscr.addstr(0, 0, f"Fetching data from {control_obj.ip_field.text}:{control_obj.port_field.text}... ", curses.color_pair(1))
+                        plot_obj.update_data(
+                            decode.Dataset(
+                                capture.capture(
+                                    ipaddress.IPv4Address(control_obj.ip_field.text),
+                                    int(control_obj.port_field.text),
+                                )
+                            )
+                        )
+                        plot_obj.update_data(None)
+                    else:
+                        stdscr.addstr(0, 0, "Connecting to device failed    |", curses.color_pair(1))
+                        raise RuntimeError("Device not reachable")
+                    # TODO: End of Working Area
                 except Exception:
-                    plot_obj.data = None  # reset data on error
+                    plot_obj.update_data(False)  # no data received from the host
                 finally:
-                    plot_obj.redraw_win()
-                    # control_obj.draw_win()
+                    # TODO: Just debug printing
+                    stdscr.addstr(1, 0, f"Time: {str(time.time())}", curses.color_pair(1))
+                    stdscr.refresh()
+                    # update plot window
+                    # plot_obj.redraw_win()  # TODO: Re-Enable after getting rid of the debug information
+                    # set cursor to active control element
+                    control_obj.interactive[control_obj.active].activity()
+
+            # create a small delay so that the whole event loop does not suck up all the CPU time
+            time.sleep(0.05)
 
     except KeyboardInterrupt:  # CTRL+C
         exit(0)
@@ -453,6 +577,22 @@ def tui():
             print(Error)
         except NameError:
             pass
+
+
+# Check if a device is reachable in the network
+def ping(host):
+    return subprocess.run(
+        [
+            'ping',
+            '-c',
+            '1',
+            '-W',
+            '0.4',
+            host
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
 
 
 if __name__ == "__main__":
