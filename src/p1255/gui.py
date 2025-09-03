@@ -42,6 +42,7 @@ class PlotWidget(FigureCanvas):
                 else:
                     self.ax.plot(channel.data_divisions, label=channel.name)
                     self.ax.yaxis.set_major_locator(MultipleLocator(1))
+                    self.ax.set_ylabel('Divisions')
                     self.ax.set_ylim(-5,5)
             self.ax.legend()
         else:
@@ -161,7 +162,6 @@ class MainWindow(QWidget):
     def toggle_voltage_mode(self):
         self.voltage_mode = not self.voltage_mode
         self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
-        self.mode_button.setText("Show Divisions" if not self.voltage_mode else "Show Voltage")
 
     def start_updating(self):
         self.timer = QTimer()
