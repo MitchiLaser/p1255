@@ -1,13 +1,18 @@
 # Peaktech P1255
 
+Peaktech P1255 remove data acquisition software
 
+This software can query data from the Peaktech P1255 oscilloscope via LAN, decode and export the data. It can be installed via pip:
 
-# Documentation
-
-This document describes all the necessary information to recreate the whole program from scratch.
-It also explains how to query data from the oscilloscope and how to access the content of the .bin file
+```bash
+pip install p1255
+```
+and it provides two executables: `peak-view` is a GUI application to view and export data and `peak-capture` is a command line tool to grab data and save it to a file.
+Use `peak-capture --help` to see all available options.
 
 ## Connection
+
+The network configuration for the oscilloscope needs to be done on the device itself. The device does not support DHCP, so you need to set a static IP address.
 
 ### IPv4 LAN
 
