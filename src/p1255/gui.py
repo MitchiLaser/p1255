@@ -18,6 +18,7 @@ from matplotlib.ticker import MultipleLocator
 import os
 from p1255.p1255 import P1255
 import ipaddress
+from PyQt5.QtWidgets import QMessageBox
 
 
 class PlotWidget(FigureCanvas):
@@ -87,6 +88,12 @@ class MainWindow(QWidget):
         self.connect_button.clicked.connect(self.connect_to_ip)
         controls.addWidget(self.connect_button, 0, 4)
 
+        # Help Button (Question Mark)
+        self.help_button = QPushButton("?")
+        self.help_button.setFixedWidth(30)
+        self.help_button.clicked.connect(self.show_help)
+        controls.addWidget(self.help_button, 0, 5)
+
         # Run and Capture Buttons
         button_layout = QHBoxLayout()
         self.run_button = QPushButton("Run Continuously")
@@ -107,9 +114,23 @@ class MainWindow(QWidget):
         self.mode_button.clicked.connect(self.toggle_voltage_mode)
         button_layout.addWidget(self.mode_button)
 
-        controls.addLayout(button_layout, 1, 0, 1, 5)
+        controls.addLayout(button_layout, 1, 0, 1, 6)
 
         layout.addLayout(controls)
+
+    def show_help(self):
+        help_text = """P1255 Help:
+        
+        Establishing a connection:
+        - Connect the Oscilloscope to a network via a LAN cable.
+        - Press the "utility" button on the oscilloscope
+        - Press the "H1" button to access the possible menus
+        - Scroll down to "LAN Set" by rotating the "M" knob
+        - Press the "M" knob to enter the menu
+        - Press on the "H2" Button ("Set")
+        - You can use the "F*" buttons and the "M" other settings
+        """
+        QMessageBox.information(self, "Help", help_text)
 
     def connect_to_ip(self):
         ip = self.ip_input.text()
@@ -117,6 +138,7 @@ class MainWindow(QWidget):
         print(f"Connecting to {ip}:{port}...")
         c = self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
         if not c:
+            QMessageBox.critical(self, "Connection Error", "Failed to connect to the oscilloscope.")
             return
         self.connect_button.setText("Connected")
 
