@@ -5,10 +5,11 @@ import struct
 import math
 import numpy as np
 
+
 class P1255:
     def __init__(self):
         self.sock = None
-    
+
     def connect(self, address, port=3000):
         """Connect to the P1255 oscilloscope at the specified address and port."""
         if not isinstance(address, ipaddress.IPv4Address):
@@ -26,24 +27,25 @@ class P1255:
             socket.AF_INET,  # Address family: IPv4
             socket.SOCK_STREAM,  # Socket type: TCP
         )
-        
+
         self.sock.settimeout(1)  # 1 second timeout
         # Connect to the client device
         try:
-            
+
             self.sock.connect((str(address), port))
         except Exception as e:
             self.sock.close()
             self.sock = None
             raise e
         return True
+
     def capture(self):
         if self.sock is None:
             return None
         try:
             # Send command to start streaming of binary data
             self.sock.send(b"STARTBIN")
-            self.sock.settimeout(1) # 1 second timeout
+            self.sock.settimeout(1)  # 1 second timeout
 
             # First information that is sent is the length of the dataset
             read = self.sock.recv_into(payload := bytearray(2), 2)
@@ -69,9 +71,11 @@ class P1255:
         if self.sock:
             self.sock.close()
             self.sock = None
-        
-        
-        
+
+    def __del__(self):
+        self.disconnect()
+
+
 class Dataset:
 
     class Channel:
@@ -93,7 +97,7 @@ class Dataset:
             # Voltage scaling information
             def calc_voltscale(number):
                 number += 4
-                exp = math.floor(number / 3) - 1 # dont know why -1
+                exp = math.floor(number / 3) - 1  # dont know why -1
                 mant = {0: 1, 1: 2, 2: 5}[number % 3]
                 volts_per_div = mant * (10 ** exp)
                 return volts_per_div * 1e-3  # convert from millivolts to volts
@@ -104,7 +108,6 @@ class Dataset:
                 '<l',
                 self.buffer[constants.CHANNEL_OFFSET:constants.CHANNEL_OFFSET + 4]
             )[0]
-            
 
             # Get the data points from the buffer
             # '<h' corresponds to little endian signed short, times the number of samples
@@ -117,11 +120,8 @@ class Dataset:
                     self.buffer[constants.BEGIN_CHANNEL_DATA:]  # specify the slice of the dataset
                 )
             ])
-            
+
             self.data_divisions = self.data / self.voltscale + self.volts_offset / 25
-            
-            
-            
 
     def __init__(self, buffer: bytearray) -> None:
         self._buffer = buffer
@@ -150,7 +150,7 @@ class Dataset:
                     memoryview(buffer)[constants.LEN_HEADER + ch * channel_data_size:constants.LEN_HEADER + (ch + 1) * channel_data_size]
                 )
             )
-            
+
     def save(self, filename, fmt='csv'):
         """Save the dataset to a file in the specified format."""
         if fmt == 'json':

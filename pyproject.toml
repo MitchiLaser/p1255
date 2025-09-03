@@ -12,7 +12,7 @@ authors = [
 readme = "Readme.md"
 requires-python= ">=3.10"
 keywords = ["Oscilloscope"]
-version="0.1.0"
+version="0.2.0"
 license = "GPL-3.0-or-later"
 classifiers = [
         "Development Status :: 5 - Production/Stable",
@@ -30,10 +30,12 @@ classifiers = [
 dependencies = [
         "PyQt5",
         "matplotlib",
+        "numpy",
 ]
 
 [project.scripts]
-peak-capture = "p1255.__main__:main"
+peak-view = "p1255.__main__:gui"
+peak-capture = "p1255.__main__:cli"
 
 [project.urls]
 "Homepage" = "https://github.com/MitchiLaser/p1255"
