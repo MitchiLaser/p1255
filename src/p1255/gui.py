@@ -63,6 +63,8 @@ class MainWindow(QWidget):
 
         self.p1255 = P1255()
         self.current_dataset = None
+        
+        self.capture_single()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
