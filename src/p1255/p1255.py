@@ -155,7 +155,7 @@ class Dataset:
         """Save the dataset to a file in the specified format."""
         if fmt == 'json':
             import json
-            data = [{"name": ch.name, "timescale": ch.timescale, "data": ch.data} for ch in self.channels]
+            data = [{"name": ch.name, "timescale": ch.timescale, "data": ch.data.tolist()} for ch in self.channels]
             with open(filename, 'w') as f:
                 json.dump(data, f)
         elif fmt == 'csv':
