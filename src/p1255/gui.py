@@ -14,7 +14,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
 import os
 from p1255.p1255 import P1255
-from p155.constants import CONNECTION_HELP
+from p1255.constants import CONNECTION_HELP
 import ipaddress
 from PyQt5.QtWidgets import QMessageBox
 

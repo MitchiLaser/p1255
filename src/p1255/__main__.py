@@ -16,11 +16,13 @@ def cli():
     import argparse
     from p1255 import p1255  # TODO: Verify
     import ipaddress
+    from p1255.constants import CONNECTION_HELP
 
     parser = argparse.ArgumentParser(
         prog="P1255",
-        description="Capture and decode data from a P1255 oscilloscope over LAN",
-        epilog="https://github.com/MitchiLaser/p1255/"
+        description= "Capture and decode data from a P1255 oscilloscope over LAN\n\n" + CONNECTION_HELP,
+        epilog="https://github.com/MitchiLaser/p1255/",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("-a", "--address", type=ipaddress.IPv4Address, required=True, help="The IPv4 address of the oscilloscope", )
     parser.add_argument("-p", "--port", type=int, default=3000, help="The port to connect to, default is 3000", )
