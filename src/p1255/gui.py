@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
 import os
 from p1255.p1255 import P1255
+from p155.constants import CONNECTION_HELP
 import ipaddress
 from PyQt5.QtWidgets import QMessageBox
 
@@ -119,18 +120,7 @@ class MainWindow(QWidget):
         layout.addLayout(controls)
 
     def show_help(self):
-        help_text = """P1255 Help:
-        
-        Establishing a connection:
-        - Connect the Oscilloscope to a network via a LAN cable.
-        - Press the "utility" button on the oscilloscope
-        - Press the "H1" button to access the possible menus
-        - Scroll down to "LAN Set" by rotating the "M" knob
-        - Press the "M" knob to enter the menu
-        - Press on the "H2" Button ("Set")
-        - You can use the "F*" buttons and the "M" other settings
-        """
-        QMessageBox.information(self, "Help", help_text)
+        QMessageBox.information(self, "Help", CONNECTION_HELP)
 
     def connect_to_ip(self):
         ip = self.ip_input.text()
