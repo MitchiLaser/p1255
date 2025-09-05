@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QLineEdit,
     QLabel,
+    QComboBox,
     QFileDialog,
-    QGridLayout,
 )
 from PyQt5.QtCore import QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -17,6 +17,11 @@ from p1255.p1255 import P1255
 from p1255.constants import CONNECTION_HELP
 import ipaddress
 from PyQt5.QtWidgets import QMessageBox
+from pathlib import Path
+import yaml
+
+
+ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
 
 
 class PlotWidget(FigureCanvas):
@@ -50,8 +55,9 @@ class PlotWidget(FigureCanvas):
 
 
 class MainWindow(QWidget):
-    def __init__(self):
+    def __init__(self, disable_aliases=False):
         super().__init__()
+        self.disable_aliases = disable_aliases
 
         self.setWindowTitle("P1255 Oscilloscope GUI")
         self.plot_widget = PlotWidget()
@@ -73,49 +79,68 @@ class MainWindow(QWidget):
         layout.addWidget(self.plot_widget)
 
         # Controls
-        controls = QGridLayout()
+        controls = QVBoxLayout()
+        
+        connection_controls = QHBoxLayout()
+        data_controls = QHBoxLayout()
+        controls.addLayout(connection_controls)
+        controls.addLayout(data_controls)
+        
+        if ALIAS_FILE.exists() and not self.disable_aliases:
+            # Branch 1 - Alias File
+            self.use_alias = True
+            with open(ALIAS_FILE, "r") as f:
+                self.aliases = yaml.safe_load(f)
+            if self.aliases:
+                self.alias_combo = QComboBox()
+                self.alias_combo.addItems(self.aliases.keys())
+                connection_controls.addWidget(QLabel("Device:"))
+                connection_controls.addWidget(self.alias_combo)
 
-        # IP and Port
-        controls.addWidget(QLabel("IP:"), 0, 0)
-        self.ip_input = QLineEdit("172.23.167.73")
-        controls.addWidget(self.ip_input, 0, 1)
-
-        controls.addWidget(QLabel("Port:"), 0, 2)
-        self.port_input = QLineEdit("3000")
-        controls.addWidget(self.port_input, 0, 3)
+        else:
+            # Branch 2 Custom IP Input
+            self.use_alias = False
+            self.ip_input = QLineEdit()
+            self.ip_input.setPlaceholderText("Enter IP Address")
+            connection_controls.addWidget(QLabel("IP Address:"))
+            connection_controls.addWidget(self.ip_input)
+            self.port_input = QLineEdit()
+            self.port_input.setText("3000")
+            connection_controls.addWidget(QLabel("Port:"))
+            connection_controls.addWidget(self.port_input)
+        
 
         # Connect Button
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.connect_to_ip)
-        controls.addWidget(self.connect_button, 0, 4)
+        connection_controls.addWidget(self.connect_button)
 
         # Help Button (Question Mark)
         self.help_button = QPushButton("?")
         self.help_button.setFixedWidth(30)
         self.help_button.clicked.connect(self.show_help)
-        controls.addWidget(self.help_button, 0, 5)
+        connection_controls.addWidget(self.help_button)
 
         # Run and Capture Buttons
-        button_layout = QHBoxLayout()
         self.run_button = QPushButton("Run Continuously")
         self.run_button.setCheckable(True)
         self.run_button.clicked.connect(self.toggle_run)
-        button_layout.addWidget(self.run_button)
+        data_controls.addWidget(self.run_button)
 
         self.capture_button = QPushButton("Capture Single")
         self.capture_button.clicked.connect(self.capture_single)
-        button_layout.addWidget(self.capture_button)
+        data_controls.addWidget(self.capture_button)
 
         self.save_button = QPushButton("Save Data")
         self.save_button.clicked.connect(self.save_data)
-        button_layout.addWidget(self.save_button)
+        data_controls.addWidget(self.save_button)
         
         self.mode_button = QPushButton("Toggle Voltage/Divisions")
         self.mode_button.setCheckable(True)
         self.mode_button.clicked.connect(self.toggle_voltage_mode)
-        button_layout.addWidget(self.mode_button)
+        data_controls.addWidget(self.mode_button)
 
-        controls.addLayout(button_layout, 1, 0, 1, 6)
+        
 
         layout.addLayout(controls)
 
@@ -123,8 +148,12 @@ class MainWindow(QWidget):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
 
     def connect_to_ip(self):
-        ip = self.ip_input.text()
-        port = self.port_input.text()
+        if self.use_alias:
+            alias = self.alias_combo.currentText()
+            ip, port = self.aliases[alias]
+        else:
+            ip = self.ip_input.text()
+            port = self.port_input.text()
         print(f"Connecting to {ip}:{port}...")
         try: 
             self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
