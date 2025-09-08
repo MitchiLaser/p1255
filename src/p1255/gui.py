@@ -19,19 +19,17 @@ import yaml
 import importlib.resources
 
 
-
-
 plt.style.use('dark_background')
 
 ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
 COLORS = ['red', 'yellow']
+
 
 class PlotWidget(FigureCanvas):
     def __init__(self, parent=None):
         self.fig = Figure()
         super().__init__(self.fig)
         self.ax = self.fig.add_subplot(111)
-        
 
     def update_plot(self, dataset, voltage=True):
         self.ax.clear()
@@ -46,7 +44,7 @@ class PlotWidget(FigureCanvas):
                     self.ax.plot(channel.data_divisions, label=channel.name, color=COLORS[i % len(COLORS)])
                     self.ax.yaxis.set_major_locator(MultipleLocator(1))
                     self.ax.set_ylabel('Divisions')
-                    self.ax.set_ylim(-5,5)
+                    self.ax.set_ylim(-5, 5)
             self.ax.legend()
         else:
             self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
@@ -59,7 +57,7 @@ class MainWindow(QWidget):
         super().__init__()
         with importlib.resources.path("p1255", "gui.ui") as ui_file:
             uic.loadUi(ui_file, self)
-        
+
         self.disable_aliases = disable_aliases
 
         self.plot_widget = PlotWidget()
@@ -74,20 +72,19 @@ class MainWindow(QWidget):
 
         with open(ALIAS_FILE, "r") as f:
             self.aliases = yaml.safe_load(f)
-            
+
         if ALIAS_FILE.exists() and not self.disable_aliases and self.aliases:
             self.use_alias = True
         else:
             self.use_alias = False
-            
+
         if self.use_alias:
             self.connection_stack.setCurrentIndex(1)
             self.alias_combo.addItems(self.aliases.keys())
             self.alias_combo.currentIndexChanged.connect(self.connect_to_ip)
         else:
             self.connection_stack.setCurrentIndex(0)
-    
-        
+
         self.connect_button.clicked.connect(self.connect_to_ip)
         self.help_button.setFixedWidth(30)
         self.help_button.clicked.connect(self.show_help)
@@ -111,26 +108,26 @@ class MainWindow(QWidget):
             ip = self.ip_input.text()
             port = self.port_input.text()
         print(f"Connecting to {ip}:{port}...")
-        try: 
+        try:
             self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
         except Exception as e:
             QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
             return
         self.connect_button.setText("Connected")
-        
+
     def disconnect(self):
         self.p1255.disconnect()
         self.connect_button.setText("Connect")
 
     def toggle_run(self, checked):
-        self.run_button.setChecked(checked) # this is in case the button gets unchecked programmatically
+        self.run_button.setChecked(checked)  # this is in case the button gets unchecked programmatically
         if checked:
             self.run_button.setText("Stop")
             self.start_updating()
         else:
             self.run_button.setText("Run Continuously")
             self.stop_updating()
-            
+
     def toggle_voltage_mode(self):
         self.voltage_mode = not self.voltage_mode
         self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
@@ -169,9 +166,7 @@ class MainWindow(QWidget):
         if not filename:
             return
 
-        if filename.endswith('.csv'):
-            self.current_dataset.save(filename, fmt='csv')
-        elif filename.endswith('.json'):
-            self.current_dataset.save(filename, fmt='json')
-        elif filename.endswith('.npy'):
-            self.current_dataset.save(filename, fmt='npy')
+        ext = Path(filename).suffix.lower()
+        fmt = ext.lstrip('.')
+        if fmt in ('csv', 'json', 'npy'):
+            self.current_dataset.save(filename, fmt=fmt)
