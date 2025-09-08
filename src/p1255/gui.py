@@ -1,12 +1,6 @@
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QSpinBox,
-    QLineEdit,
-    QLabel,
-    QComboBox,
     QFileDialog,
 )
 from PyQt5 import uic
@@ -68,7 +62,6 @@ class MainWindow(QWidget):
         
         self.disable_aliases = disable_aliases
 
-        #self.setWindowTitle("P1255 Oscilloscope GUI")
         self.plot_widget = PlotWidget()
         layout = QVBoxLayout(self.plot_placeholder)
         layout.addWidget(self.plot_widget)
