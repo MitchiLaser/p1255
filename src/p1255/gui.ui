@@ -22,7 +22,7 @@
      <item>
       <widget class="QStackedWidget" name="connection_stack">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="custom_ip">
         <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -116,11 +116,55 @@
        </property>
       </widget>
      </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="QPushButton" name="mode_button">
+      <widget class="QLabel" name="label_4">
        <property name="text">
-        <string>Toggle Voltage/Divisions</string>
+        <string>Plot Type</string>
        </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="display_mode_combo">
+       <item>
+        <property name="text">
+         <string>Normal</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Ch1/Ch2</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Ch2/Ch1</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Units</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="unit_combo">
+       <item>
+        <property name="text">
+         <string>Voltage</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Divisions</string>
+        </property>
+       </item>
       </widget>
      </item>
     </layout>

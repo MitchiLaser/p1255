@@ -31,21 +31,59 @@ class PlotWidget(FigureCanvas):
         super().__init__(self.fig)
         self.ax = self.fig.add_subplot(111)
 
-    def update_plot(self, dataset, voltage=True):
+    def update_plot(self, dataset, unit, mode):
+        """Update the plot with data and unit
+        
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to plot.
+        unit : str
+            The unit to plot ('Voltage' or 'Divisions').
+        mode : str
+            The mode of the oscilloscope ('Normal', 'Ch1/Ch2', 'Ch2/Ch1').
+        """
+        if unit not in ('Voltage', 'Divisions'):
+            raise ValueError("Unit must be 'Voltage' or 'Divisions'")
+        if mode not in ('Normal', 'Ch1/Ch2', 'Ch2/Ch1'):
+            raise ValueError("Mode must be 'Normal', 'Ch1/Ch2', or 'Ch2/Ch1'")
         self.ax.clear()
         if dataset:
-            for i, channel in enumerate(dataset.channels):
-                if voltage:
-                    self.ax.plot(channel.data, label=channel.name, color=COLORS[i % len(COLORS)])
-                    self.ax.set_ylabel('Voltage (V)')
-                    self.ax.relim()
-                    self.ax.autoscale_view()
-                else:
-                    self.ax.plot(channel.data_divisions, label=channel.name, color=COLORS[i % len(COLORS)])
+            if mode == 'Normal':
+                for i, channel in enumerate(dataset.channels):
+                    if unit == 'Voltage':
+                        self.ax.plot(channel.data, label=channel.name, color=COLORS[i % len(COLORS)])
+                        self.ax.set_ylabel('Voltage (V)')
+                        self.ax.relim()
+                        self.ax.autoscale_view()
+                    else: # Divisions
+                        self.ax.plot(channel.data_divisions, label=channel.name, color=COLORS[i % len(COLORS)])
+                        self.ax.yaxis.set_major_locator(MultipleLocator(1))
+                        self.ax.set_ylabel('Divisions')
+                        self.ax.set_ylim(-5, 5)
+                self.ax.legend()
+            else: # XY Plot
+                ch1 = dataset.channels[0]
+                ch2 = dataset.channels[1]
+                if unit == 'Voltage':
+                    ch1 = ch1.data
+                    ch2 = ch2.data
+                elif unit == 'Divisions':
+                    ch1 = ch1.data_divisions
+                    ch2 = ch2.data_divisions
                     self.ax.yaxis.set_major_locator(MultipleLocator(1))
-                    self.ax.set_ylabel('Divisions')
+                    self.ax.xaxis.set_major_locator(MultipleLocator(1))
                     self.ax.set_ylim(-5, 5)
-            self.ax.legend()
+                    self.ax.set_xlim(-5, 5)
+                if mode == 'Ch1/Ch2':
+                    self.ax.plot(ch1, ch2)
+                    self.ax.set_xlabel(f'{dataset.channels[0].name} ({unit})')
+                    self.ax.set_ylabel(f'{dataset.channels[1].name} ({unit})')
+                else: # Ch2/Ch1
+                    self.ax.plot(ch2, ch1)
+                    self.ax.set_xlabel(f'{dataset.channels[1].name} ({unit})')
+                    self.ax.set_ylabel(f'{dataset.channels[0].name} ({unit})')
+
         else:
             self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
         self.ax.grid(True, linestyle='--', alpha=0.5)
@@ -68,7 +106,6 @@ class MainWindow(QWidget):
 
         self.p1255 = P1255()
         self.current_dataset = None
-        self.voltage_mode = True
 
         with open(ALIAS_FILE, "r") as f:
             self.aliases = yaml.safe_load(f)
@@ -91,7 +128,8 @@ class MainWindow(QWidget):
         self.run_button.clicked.connect(self.toggle_run)
         self.capture_button.clicked.connect(self.capture_single)
         self.save_button.clicked.connect(self.save_data)
-        self.mode_button.clicked.connect(self.toggle_voltage_mode)
+        self.unit_combo.currentIndexChanged.connect(self.update_current)
+        self.display_mode_combo.currentIndexChanged.connect(self.update_current)
 
         if self.use_alias:
             self.connect_to_ip()
@@ -128,9 +166,8 @@ class MainWindow(QWidget):
             self.run_button.setText("Run Continuously")
             self.stop_updating()
 
-    def toggle_voltage_mode(self):
-        self.voltage_mode = not self.voltage_mode
-        self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
+    def update_current(self):
+        self.plot_widget.update_plot(self.current_dataset, self.unit_combo.currentText(), self.display_mode_combo.currentText())
 
     def start_updating(self):
         self.timer = QTimer()
@@ -145,7 +182,7 @@ class MainWindow(QWidget):
     def capture_single(self):
         try:
             self.current_dataset = self.p1255.capture()
-            self.plot_widget.update_plot(self.current_dataset, self.voltage_mode)
+            self.plot_widget.update_plot(self.current_dataset, self.unit_combo.currentText(), self.display_mode_combo.currentText())
         except ConnectionError:
             QMessageBox.critical(self, "Connection Error", "Connection lost.")
             self.toggle_run(False)
