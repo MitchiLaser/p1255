@@ -17,7 +17,6 @@ def gui():
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    print(args.customIP)
     window = MainWindow(disable_aliases=args.customIP)
     window.resize(800, 600)
     window.show()

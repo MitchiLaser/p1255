@@ -12,6 +12,7 @@ from PyQt5.QtCore import QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
+import matplotlib.pyplot as plt
 import os
 from p1255.p1255 import P1255
 from p1255.constants import CONNECTION_HELP
@@ -21,8 +22,10 @@ from pathlib import Path
 import yaml
 
 
-ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
+plt.style.use('dark_background')
 
+ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
+COLORS = ['red', 'yellow']
 
 class PlotWidget(FigureCanvas):
     def __init__(self):
@@ -33,24 +36,22 @@ class PlotWidget(FigureCanvas):
 
     def update_plot(self, dataset, voltage=True):
         self.ax.clear()
-        
-        
         if dataset:
-            for channel in dataset.channels:
+            for i, channel in enumerate(dataset.channels):
                 if voltage:
-                    self.ax.plot(channel.data, label=channel.name)
+                    self.ax.plot(channel.data, label=channel.name, color=COLORS[i % len(COLORS)])
                     self.ax.set_ylabel('Voltage (V)')
                     self.ax.relim()
                     self.ax.autoscale_view()
                 else:
-                    self.ax.plot(channel.data_divisions, label=channel.name)
+                    self.ax.plot(channel.data_divisions, label=channel.name, color=COLORS[i % len(COLORS)])
                     self.ax.yaxis.set_major_locator(MultipleLocator(1))
                     self.ax.set_ylabel('Divisions')
                     self.ax.set_ylim(-5,5)
             self.ax.legend()
         else:
             self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
-        self.ax.grid(True)
+        self.ax.grid(True, linestyle='--', alpha=0.5)
         self.draw()
 
 
@@ -69,6 +70,7 @@ class MainWindow(QWidget):
         self.p1255 = P1255()
         self.current_dataset = None
         
+        self.connect_to_ip()
         self.capture_single()
 
     def init_ui(self):
@@ -94,6 +96,7 @@ class MainWindow(QWidget):
             if self.aliases:
                 self.alias_combo = QComboBox()
                 self.alias_combo.addItems(self.aliases.keys())
+                self.alias_combo.currentIndexChanged.connect(self.connect_to_ip)
                 connection_controls.addWidget(QLabel("Device:"))
                 connection_controls.addWidget(self.alias_combo)
 
