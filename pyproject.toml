@@ -48,3 +48,9 @@ line-length = 150
 [tool.isort]
 profile = "black"
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+p1255 = ["*.ui"]
+
