@@ -1,0 +1,32 @@
+stages:
+  - build
+  - publish
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # PYPI_TOKEN should be added in GitLab CI/CD variables (Settings > CI/CD > Variables)
+
+# Build stage
+build:
+  stage: build
+  image: python:3.11
+  script:
+    - pip install --upgrade pip setuptools wheel
+    - make build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+# Publish stage
+publish:
+  stage: publish
+  image: python:3.11
+  script:
+    - pip install --upgrade twine
+    - twine upload dist/* -u __token__ -p $PYPI_TOKEN
+  dependencies:
+    - build
+  only:
+    - tags
+
