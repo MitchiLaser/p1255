@@ -136,12 +136,12 @@
        </item>
        <item>
         <property name="text">
-         <string>Ch1/Ch2</string>
+         <string>X: Ch1, Y: Ch2</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Ch2/Ch1</string>
+         <string>X: Ch2, Y: Ch1</string>
         </property>
        </item>
       </widget>

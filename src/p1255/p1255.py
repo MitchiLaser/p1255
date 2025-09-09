@@ -31,7 +31,6 @@ class P1255:
         self.sock.settimeout(1)  # 1 second timeout
         # Connect to the client device
         try:
-
             self.sock.connect((str(address), port))
         except Exception as e:
             self.sock.close()
@@ -162,10 +161,17 @@ class Dataset:
             import csv
             with open(filename, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([ch.name for ch in self.channels])
-                writer.writerows(zip(*[ch.data for ch in self.channels]))
-        elif fmt == 'npy':
-            data = {ch.name: ch.data for ch in self.channels}
-            np.save(filename, data)
+                writer.writerow(['Time (s)'] + [f"{ch.name} (V)" for ch in self.channels])  # write header
+                # Calculate timescale information
+                time = np.linspace(start=(-1) * self.channels[0].timescale / 2, stop=self.channels[0].timescale / 2, num=len(self.channels[0].data), endpoint=True)
+                # write the data with the time column
+                write_data = [time] + [ch.data for ch in self.channels]
+                writer.writerows(zip(*write_data))
+        elif fmt == 'npz':
+            data = {
+                **{ch.name: ch.data for ch in self.channels},
+                'time': np.linspace(start=(-1) * self.channels[0].timescale / 2, stop=self.channels[0].timescale / 2, num=len(self.channels[0].data), endpoint=True)
+            }
+            np.savez(filename, **data)  # save as .npz file
         else:
-            raise ValueError("Unsupported format. Use 'csv', 'json' or 'npy'.")
+            raise ValueError("Unsupported format. Use 'csv', 'json' or 'npz'.")

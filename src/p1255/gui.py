@@ -17,12 +17,16 @@ from PyQt5.QtWidgets import QMessageBox
 from pathlib import Path
 import yaml
 import importlib.resources
+import numpy as np
 
 
 plt.style.use('dark_background')
 
 ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
-COLORS = ['red', 'yellow']
+COLORS = {
+    "CH1": 'red',
+    "CH2": 'yellow',
+}
 
 
 class PlotWidget(FigureCanvas):
@@ -33,7 +37,7 @@ class PlotWidget(FigureCanvas):
 
     def update_plot(self, dataset, unit, mode):
         """Update the plot with data and unit
-        
+
         Parameters
         ----------
         dataset : Dataset
@@ -41,28 +45,37 @@ class PlotWidget(FigureCanvas):
         unit : str
             The unit to plot ('Voltage' or 'Divisions').
         mode : str
-            The mode of the oscilloscope ('Normal', 'Ch1/Ch2', 'Ch2/Ch1').
+            The mode of the oscilloscope ('Normal', 'X: Ch1, Y: Ch2', 'X: Ch2, Y: Ch1').
         """
         if unit not in ('Voltage', 'Divisions'):
             raise ValueError("Unit must be 'Voltage' or 'Divisions'")
-        if mode not in ('Normal', 'Ch1/Ch2', 'Ch2/Ch1'):
-            raise ValueError("Mode must be 'Normal', 'Ch1/Ch2', or 'Ch2/Ch1'")
+        if mode not in ('Normal', 'X: Ch1, Y: Ch2', 'X: Ch2, Y: Ch1'):
+            raise ValueError("Mode must be 'Normal', 'X: Ch1, Y: Ch2', or 'X: Ch2, Y: Ch1'")
         self.ax.clear()
         if dataset:
             if mode == 'Normal':
+                time = np.linspace(start=(-1) * dataset.channels[0].timescale / 2, stop=dataset.channels[0].timescale / 2, num=len(dataset.channels[0].data), endpoint=True)
+                if time[-1] < 1e-3:
+                    time *= 1e6
+                    self.ax.set_xlabel('Time (µs)')
+                elif time[-1] < 1:
+                    time *= 1e3
+                    self.ax.set_xlabel('Time (ms)')
+                else:
+                    self.ax.set_xlabel('Time (s)')
                 for i, channel in enumerate(dataset.channels):
                     if unit == 'Voltage':
-                        self.ax.plot(channel.data, label=channel.name, color=COLORS[i % len(COLORS)])
+                        self.ax.plot(time, channel.data, label=channel.name, color=COLORS[channel.name])
                         self.ax.set_ylabel('Voltage (V)')
                         self.ax.relim()
                         self.ax.autoscale_view()
-                    else: # Divisions
-                        self.ax.plot(channel.data_divisions, label=channel.name, color=COLORS[i % len(COLORS)])
+                    else:  # Divisions
+                        self.ax.plot(time, channel.data_divisions, label=channel.name, color=COLORS[channel.name])
                         self.ax.yaxis.set_major_locator(MultipleLocator(1))
                         self.ax.set_ylabel('Divisions')
                         self.ax.set_ylim(-5, 5)
                 self.ax.legend()
-            else: # XY Plot
+            else:  # XY Plot
                 ch1 = dataset.channels[0]
                 ch2 = dataset.channels[1]
                 if unit == 'Voltage':
@@ -75,11 +88,11 @@ class PlotWidget(FigureCanvas):
                     self.ax.xaxis.set_major_locator(MultipleLocator(1))
                     self.ax.set_ylim(-5, 5)
                     self.ax.set_xlim(-5, 5)
-                if mode == 'Ch1/Ch2':
+                if mode == 'X: Ch1, Y: Ch2':
                     self.ax.plot(ch1, ch2)
                     self.ax.set_xlabel(f'{dataset.channels[0].name} ({unit})')
                     self.ax.set_ylabel(f'{dataset.channels[1].name} ({unit})')
-                else: # Ch2/Ch1
+                else:  # Ch2/Ch1
                     self.ax.plot(ch2, ch1)
                     self.ax.set_xlabel(f'{dataset.channels[1].name} ({unit})')
                     self.ax.set_ylabel(f'{dataset.channels[0].name} ({unit})')
@@ -107,11 +120,10 @@ class MainWindow(QWidget):
         self.p1255 = P1255()
         self.current_dataset = None
 
-        with open(ALIAS_FILE, "r") as f:
-            self.aliases = yaml.safe_load(f)
-
-        if ALIAS_FILE.exists() and not self.disable_aliases and self.aliases:
+        if Path(ALIAS_FILE).is_file() and not self.disable_aliases and self.aliases:
             self.use_alias = True
+            with open(ALIAS_FILE, "r") as f:
+                self.aliases = yaml.safe_load(f)
         else:
             self.use_alias = False
 
@@ -198,12 +210,12 @@ class MainWindow(QWidget):
             return
 
         filename = QFileDialog.getSaveFileName(
-            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json);;Numpy Files (*.npy)"
+            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json);;Numpy Files (*.npz)"
         )[0]
         if not filename:
             return
 
         ext = Path(filename).suffix.lower()
         fmt = ext.lstrip('.')
-        if fmt in ('csv', 'json', 'npy'):
+        if fmt in ('csv', 'json', 'npz'):
             self.current_dataset.save(filename, fmt=fmt)
