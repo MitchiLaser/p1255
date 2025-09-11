@@ -23,7 +23,6 @@ publish:
   stage: publish
   image: python:3.11
   script:
-    - echo "Token length: ${#PYPI_TOKEN}"
     - pip install --upgrade twine
     - twine upload dist/* -u __token__ -p $PYPI_TOKEN
   dependencies:
