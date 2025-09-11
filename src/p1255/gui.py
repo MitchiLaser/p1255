@@ -120,7 +120,7 @@ class MainWindow(QWidget):
         self.p1255 = P1255()
         self.current_dataset = None
 
-        if Path(ALIAS_FILE).is_file() and not self.disable_aliases and self.aliases:
+        if Path(ALIAS_FILE).is_file() and not self.disable_aliases:
             self.use_alias = True
             with open(ALIAS_FILE, "r") as f:
                 self.aliases = yaml.safe_load(f)
