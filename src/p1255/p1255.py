@@ -36,6 +36,11 @@ class P1255:
             self.sock.close()
             self.sock = None
             raise e
+        
+        self.send_command(":SDSLVER#") # ???
+        self.send_command(":SDSLSCPI#") # start the SCPI port
+        
+        
         return True
 
     def capture(self):
@@ -64,6 +69,212 @@ class P1255:
             return Dataset(buffer)
         except (TimeoutError, ConnectionError) as e:
             raise ConnectionError(f"Socket error during capture: {e}")
+        
+    def set_trigger_configuration(
+        self,
+        coupling = "DC",
+        mode = "AUTO",
+        flank = "RISING",
+        level = 0,
+        channel = 1,
+        type = "SINGLE",
+        ):
+        """Set the trigger configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        coupling : str
+            The coupling mode. One of 'AC', 'DC', 'LF', 'HF'
+        mode : str
+            The trigger mode. One of 'AUTO', 'NORM', 'SINGLE'
+        flank : str
+            The trigger flank. One of 'RISING', 'FALLING'
+        level : int
+            The trigger level in Volts. Range is +5V to -7V in steps of 40mV. (Will be rounded to nearest step)
+        channel : int
+            The channel to trigger on. 1 or 2
+        type : str
+            The trigger type. 'SINGLE' or 'ALTERNATE'
+        """
+        if self.sock is None:
+            return None
+        if coupling not in ['AC', 'DC', 'LF', 'HF']:
+            raise ValueError("Invalid coupling mode. Must be one of 'AC', 'DC', 'LF', 'HF'.")
+        if mode not in ['AUTO', 'NORM', 'SINGLE']:
+            raise ValueError("Invalid trigger mode. Must be one of 'AUTO', 'NORM', 'SINGLE'.")
+        if flank not in ['RISING', 'FALLING']:
+            raise ValueError("Invalid trigger flank. Must be one of 'RISING', 'FALLING'.")
+        if channel not in [1, 2]:
+            raise ValueError("Invalid channel. Must be 1 or 2.")
+        if type not in ['SINGLE', 'ALTERNATE']:
+            raise ValueError("Invalid trigger type. Must be 'SINGLE' or 'ALTERNATE'.")
+        if not (-7.0 <= level <= 5.0):
+            raise ValueError("Invalid trigger level. Must be between -7V and +5V.")
+        header = "3a4d0000002e"
+        const = "4d5452"
+        
+        if type == 'SINGLE':
+            const += "73"
+        else:
+            const += "61"
+        
+        if channel == 1:
+            const += "00"
+        else:
+            const += "01"
+        const += "65"
+            
+        out = header + const
+        
+        out += "02" # coupling
+        if coupling == 'DC':
+            out += "00"
+        elif coupling == 'AC':
+            out += "01"
+        elif coupling == 'HF':
+            out += "02"
+        elif coupling == 'LF':
+            out += "03"
+    
+        out += const
+        out += "03" # mode
+        if mode == 'AUTO':
+            out += "00"
+        elif mode == 'NORM':
+            out += "01"
+        elif mode == 'SINGLE':
+            out += "02"
+        
+        out += const
+        out += "0400000000" # dont know
+        
+        out += const
+        out += "05" # flank
+        if flank == 'RISING':
+            out += "00"
+        elif flank == 'FALLING':
+            out += "01"
+            
+        out += const
+        out += "06"
+        trigger_level_steps = round(level / 0.04)  # nearest integer
+        trigger_level_steps = max(-2**31, min(trigger_level_steps, 2**31 - 1))  # clamp to signed 32-bit range
+        b = struct.pack(">i", trigger_level_steps)  # pack into 4 bytes, big-endian signed int
+        hex_level = b.hex()
+        out += hex_level
+        print(out)
+        self.sock.sendall(bytes.fromhex(out))
+        
+    def send_command(self, command: str):
+        """Send a string command to the oscilloscope."""
+        bytes_command = bytes(command, 'ASCII')
+        print(bytes_command)
+        self.sock.sendall(bytes_command)
+
+    def set_channel_configuration(
+        self,
+        channel: int,
+        probe_rate: int = 1,
+        coupling: str = "DC",
+        voltbase_V: float = 0,
+    ):
+        PROBERATE_MAP = {
+            1: "00",
+            10: "01",
+            100: "02",
+            1000: "03"
+        }
+        COUPLING_MAP = {
+            'DC': "00",
+            'AC': "01",
+            'GND': "02"
+        }
+        VOLTBASE_MAP = {
+        0.002: "00",
+        0.005: "01",
+        0.010: "02",
+        0.020: "03",
+        0.050: "04",
+        0.100: "05",
+        0.200: "06",
+        0.500: "07",
+        1.000: "08",
+        2.000: "09",
+        5.000: "0A",
+        10.000: "0B"
+        }
+        
+        if channel not in [1, 2]:
+            raise ValueError("Invalid channel. Must be 1 or 2.")
+        if probe_rate not in PROBERATE_MAP:
+            raise ValueError(f"Invalid probe rate. Must be one of {list(PROBERATE_MAP.keys())}.")
+        if coupling not in COUPLING_MAP:
+            raise ValueError(f"Invalid coupling mode. Must be one of {list(COUPLING_MAP.keys())}.")
+        if voltbase_V not in VOLTBASE_MAP:
+            raise ValueError(f"Invalid voltbase. Must be one of {list(VOLTBASE_MAP.keys())}.")
+        
+        out = "3a4d000000064d4348"
+        
+        if channel == 1:
+            out += "00"
+        else:
+            out += "01"
+        out += "70"
+        out += PROBERATE_MAP[probe_rate]
+        out += "63"
+        out += COUPLING_MAP[coupling]
+        out += "76"
+        out += VOLTBASE_MAP[voltbase_V]
+        print(out)
+        self.send_command(out)
+        
+
+    def set_ip_configuration(
+        self, 
+        ip = "192.168.1.72", 
+        port = 3000, 
+        subnet = "255.255.255.0", 
+        gateway = "192.168.1.1"
+        ):
+        """Set the IP configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        ip : str
+            The IP address to set.
+        port : int
+            The port number to set.
+        subnet : str
+            The subnet mask to set.
+        gateway : str
+            The gateway address to set.
+        """
+        if self.sock is None:
+            return None
+
+        try:
+            ip_addr = ipaddress.IPv4Address(ip)
+            subnet_addr = ipaddress.IPv4Address(subnet)
+            gateway_addr = ipaddress.IPv4Address(gateway)
+        except ipaddress.AddressValueError as e:
+            raise ValueError(f"Invalid IP address: {e}")
+
+        if not (0 < port <= 4000):
+            raise ValueError(f"Port number must be between 1 and 4000: {port}")
+
+        # Construct the command
+        command = bytearray.fromhex("3a4d000000134d4e54")
+        command += ip_addr.packed
+        command += port.to_bytes(4, byteorder="big")
+        command += subnet_addr.packed
+        command += gateway_addr.packed
+        
+        # Send the command
+        self.sock.sendall(command)
+        return True
+    
+
+    
 
     def disconnect(self):
         """Disconnect from the P1255 oscilloscope."""
@@ -175,3 +386,6 @@ class Dataset:
             np.savez(filename, **data)  # save as .npz file
         else:
             raise ValueError("Unsupported format. Use 'csv', 'json' or 'npz'.")
+
+
+
