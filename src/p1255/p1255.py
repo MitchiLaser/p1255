@@ -4,6 +4,7 @@ import socket
 import struct
 import math
 import numpy as np
+import hexdump
 
 
 class P1255:
@@ -37,8 +38,8 @@ class P1255:
             self.sock = None
             raise e
         
-        self.send_command(":SDSLVER#") # ???
-        self.send_command(":SDSLSCPI#") # start the SCPI port
+        # self.send_command(":SDSLVER#") # ???
+        # self.send_command(":SDSLSCPI#") # start the SCPI port
         
         
         return True
@@ -70,6 +71,9 @@ class P1255:
         except (TimeoutError, ConnectionError) as e:
             raise ConnectionError(f"Socket error during capture: {e}")
         
+        
+        
+        
     def set_trigger_configuration(
         self,
         coupling = "DC",
@@ -96,80 +100,81 @@ class P1255:
         type : str
             The trigger type. 'SINGLE' or 'ALTERNATE'
         """
-        if self.sock is None:
-            return None
-        if coupling not in ['AC', 'DC', 'LF', 'HF']:
-            raise ValueError("Invalid coupling mode. Must be one of 'AC', 'DC', 'LF', 'HF'.")
-        if mode not in ['AUTO', 'NORM', 'SINGLE']:
-            raise ValueError("Invalid trigger mode. Must be one of 'AUTO', 'NORM', 'SINGLE'.")
-        if flank not in ['RISING', 'FALLING']:
-            raise ValueError("Invalid trigger flank. Must be one of 'RISING', 'FALLING'.")
-        if channel not in [1, 2]:
-            raise ValueError("Invalid channel. Must be 1 or 2.")
-        if type not in ['SINGLE', 'ALTERNATE']:
-            raise ValueError("Invalid trigger type. Must be 'SINGLE' or 'ALTERNATE'.")
+        TRIGGER_TYPE_MAP_ASCII = {
+            'SINGLE': 's',
+            'ALTERNATE': 'a'
+        }
+        CHANNEL_MAP = {
+            1: '00',
+            2: '01'
+        }
+        COUPLING_MAP = {
+            'DC': '00',
+            'AC': '01',
+            'HF': '02',
+            'LF': '03'
+        }
+        MODE_MAP = {
+            'AUTO': '00',
+            'NORM': '01',
+            'SINGLE': '02'
+        }
+        FLANK_MAP = {
+            'RISING': '00',
+            'FALLING': '01'
+        }
+        if coupling not in COUPLING_MAP:
+            raise ValueError(f"Invalid coupling mode. Must be one of {list(COUPLING_MAP.keys())}.")
+        if mode not in MODE_MAP:
+            raise ValueError(f"Invalid trigger mode. Must be one of {list(MODE_MAP.keys())}.")
+        if flank not in FLANK_MAP:
+            raise ValueError(f"Invalid trigger flank. Must be one of {list(FLANK_MAP.keys())}.")
+        if channel not in CHANNEL_MAP:
+            raise ValueError(f"Invalid channel. Must be one of {list(CHANNEL_MAP.keys())}.")
+        if type not in TRIGGER_TYPE_MAP_ASCII:
+            raise ValueError(f"Invalid trigger type. Must be one of {list(TRIGGER_TYPE_MAP_ASCII.keys())}.")
         if not (-7.0 <= level <= 5.0):
             raise ValueError("Invalid trigger level. Must be between -7V and +5V.")
-        header = "3a4d0000002e"
-        const = "4d5452"
         
-        if type == 'SINGLE':
-            const += "73"
-        else:
-            const += "61"
+        cmd = Command()
+        cmd += ":M"
+        cmd.add_hex("0000002e")
         
-        if channel == 1:
-            const += "00"
-        else:
-            const += "01"
-        const += "65"
-            
-        out = header + const
+        # Get the repeating string
+        repeat = Command()
+        repeat += "MTR"
+        repeat += TRIGGER_TYPE_MAP_ASCII[type]
+        repeat.add_hex(CHANNEL_MAP[channel])
         
-        out += "02" # coupling
-        if coupling == 'DC':
-            out += "00"
-        elif coupling == 'AC':
-            out += "01"
-        elif coupling == 'HF':
-            out += "02"
-        elif coupling == 'LF':
-            out += "03"
+        # Coupling
+        cmd += repeat
+        cmd.add_hex("02")
+        cmd.add_hex(COUPLING_MAP[coupling])
+        
+        # Mode
+        cmd += repeat
+        cmd.add_hex("03")
+        cmd.add_hex(MODE_MAP[mode])
     
-        out += const
-        out += "03" # mode
-        if mode == 'AUTO':
-            out += "00"
-        elif mode == 'NORM':
-            out += "01"
-        elif mode == 'SINGLE':
-            out += "02"
+        # Dont know
+        cmd += repeat
+        cmd.add_hex("04")
+        cmd.add_hex("00000000")
         
-        out += const
-        out += "0400000000" # dont know
+        # Flank
+        cmd += repeat
+        cmd.add_hex("05")
+        cmd.add_hex(FLANK_MAP[flank])
         
-        out += const
-        out += "05" # flank
-        if flank == 'RISING':
-            out += "00"
-        elif flank == 'FALLING':
-            out += "01"
-            
-        out += const
-        out += "06"
+        # Level
+        cmd += repeat
+        cmd.add_hex("06")
         trigger_level_steps = round(level / 0.04)  # nearest integer
         trigger_level_steps = max(-2**31, min(trigger_level_steps, 2**31 - 1))  # clamp to signed 32-bit range
         b = struct.pack(">i", trigger_level_steps)  # pack into 4 bytes, big-endian signed int
         hex_level = b.hex()
-        out += hex_level
-        print(out)
-        self.sock.sendall(bytes.fromhex(out))
-        
-    def send_command(self, command: str):
-        """Send a string command to the oscilloscope."""
-        bytes_command = bytes(command, 'ASCII')
-        print(bytes_command)
-        self.sock.sendall(bytes_command)
+        cmd.add_hex(hex_level)
+        cmd.send(self)
 
     def set_channel_configuration(
         self,
@@ -178,6 +183,23 @@ class P1255:
         coupling: str = "DC",
         voltbase_V: float = 0,
     ):
+        """Set the channel configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        channel : int
+            The channel to configure. 1 or 2
+        probe_rate : int
+            The probe rate. One of 1, 10, 100, 1000
+        coupling : str
+            The coupling mode. One of 'DC', 'AC', 'GND'
+        voltbase_V : float
+            The voltbase in Volts. One of 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10
+        """
+        CHANNEL_MAP = {
+            1: "00",
+            2: "01"
+        }
         PROBERATE_MAP = {
             1: "00",
             10: "01",
@@ -204,8 +226,8 @@ class P1255:
         10.000: "0B"
         }
         
-        if channel not in [1, 2]:
-            raise ValueError("Invalid channel. Must be 1 or 2.")
+        if channel not in CHANNEL_MAP:
+            raise ValueError(f"Invalid channel. Must be one of {list(CHANNEL_MAP.keys())}.")
         if probe_rate not in PROBERATE_MAP:
             raise ValueError(f"Invalid probe rate. Must be one of {list(PROBERATE_MAP.keys())}.")
         if coupling not in COUPLING_MAP:
@@ -213,20 +235,22 @@ class P1255:
         if voltbase_V not in VOLTBASE_MAP:
             raise ValueError(f"Invalid voltbase. Must be one of {list(VOLTBASE_MAP.keys())}.")
         
-        out = "3a4d000000064d4348"
-        
-        if channel == 1:
-            out += "00"
-        else:
-            out += "01"
-        out += "70"
-        out += PROBERATE_MAP[probe_rate]
-        out += "63"
-        out += COUPLING_MAP[coupling]
-        out += "76"
-        out += VOLTBASE_MAP[voltbase_V]
-        print(out)
-        self.send_command(out)
+        cmd = Command()
+        cmd += ":M"
+        cmd.add_hex("00000006") # length of the command
+        cmd += "MCH"
+        # Channel
+        cmd.add_hex(CHANNEL_MAP[channel])
+        # Prope rate
+        cmd += "p"
+        cmd.add_hex(PROBERATE_MAP[probe_rate])
+        # Coupling
+        cmd += "c"
+        cmd.add_hex(COUPLING_MAP[coupling])
+        # Voltbase
+        cmd += "v"
+        cmd.add_hex(VOLTBASE_MAP[voltbase_V])
+        cmd.send(self)
         
 
     def set_ip_configuration(
@@ -263,16 +287,15 @@ class P1255:
             raise ValueError(f"Port number must be between 1 and 4000: {port}")
 
         # Construct the command
-        command = bytearray.fromhex("3a4d000000134d4e54")
-        command += ip_addr.packed
-        command += port.to_bytes(4, byteorder="big")
-        command += subnet_addr.packed
-        command += gateway_addr.packed
-        
-        # Send the command
-        self.sock.sendall(command)
-        return True
-    
+        cmd = Command()
+        cmd += ":M"
+        cmd.add_hex("00000013")  # length of the command
+        cmd += "MNT"
+        cmd.add_hex(ip_addr.packed.hex())
+        cmd.add_hex(port.to_bytes(4, byteorder="big").hex())
+        cmd.add_hex(subnet_addr.packed.hex())
+        cmd.add_hex(gateway_addr.packed.hex())
+        cmd.send(self)
 
     
 
@@ -389,3 +412,45 @@ class Dataset:
 
 
 
+
+def ascii_to_hex_str(ascii_str: str) -> str:
+    """Convert an ASCII string to a hex string."""
+    hex_string = ascii_str.encode("ASCII").hex()
+    return hex_string
+
+class Command:
+    def __init__(self):
+        self._hex = ""
+    
+    def add_hex(self, hex_str: str):
+        """Add a hex string to the command."""
+        self._hex += hex_str
+        return self
+    
+    def add_ascii(self, ascii_str: str):
+        """Add an ASCII string to the command."""
+        self._hex += ascii_to_hex_str(ascii_str)
+        return self
+    
+    def __add__(self, other):
+        if isinstance(other, Command):
+            return Command().add_hex(self._hex + other._hex)
+        elif isinstance(other, str):
+            return Command().add_hex(self._hex + ascii_to_hex_str(other))
+        else:
+            raise TypeError("Can only add Command or str to Command")
+        
+    def dump(self):
+        """Dump the command as a hex dump."""
+        hexdump.hexdump(bytes.fromhex(self._hex))
+
+    def get_bytes(self):
+        """Get the command as bytes."""
+        return bytes.fromhex(self._hex)
+    
+    def send(self, p1255: P1255):
+        """Send the command to the P1255."""
+        if p1255.sock is None:
+            self.dump()
+        else:
+            p1255.sock.sendall(self.get_bytes())
