@@ -175,6 +175,21 @@ class P1255:
         hex_level = b.hex()
         cmd.add_hex(hex_level)
         cmd.send(self)
+        
+    def set_fourier_configuration():
+        """
+        
+        :M....MFT
+        1byte o-> on/off?
+        1byte f-> frequency?
+        1byte s
+        1byte w-> window?
+        2byte a
+        1byte z->Zoom?
+        
+        """
+        pass
+    
 
     def set_channel_configuration(
         self,
