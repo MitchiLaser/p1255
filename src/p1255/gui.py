@@ -162,6 +162,7 @@ class MainWindow(QWidget):
             self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
         except Exception as e:
             QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
+            self.connect_button.setStyleSheet("color: black;")
             return
         self.connect_button.setText("Connected")
         self.connect_button.setStyleSheet("color: green;")
@@ -170,6 +171,7 @@ class MainWindow(QWidget):
     def disconnect(self):
         self.p1255.disconnect()
         self.connect_button.setText("Connect")
+        self.connect_button.setStyleSheet("color: black;")
 
     def toggle_run(self, checked):
         self.run_button.setChecked(checked)  # this is in case the button gets unchecked programmatically
