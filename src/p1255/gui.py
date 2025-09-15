@@ -164,6 +164,8 @@ class MainWindow(QWidget):
             QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
             return
         self.connect_button.setText("Connected")
+        self.connect_button.setStyleSheet("color: green;")
+        print(f"Connected to {ip}:{port}...")
 
     def disconnect(self):
         self.p1255.disconnect()
