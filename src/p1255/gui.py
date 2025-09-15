@@ -165,7 +165,7 @@ class MainWindow(QWidget):
             return
         self.connect_button.setText("Connected")
         self.connect_button.setStyleSheet("color: green;")
-        print(f"Connected to {ip}:{port}...")
+        print(f"Connected to {ip}:{port}")
 
     def disconnect(self):
         self.p1255.disconnect()
