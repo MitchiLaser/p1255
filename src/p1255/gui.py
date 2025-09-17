@@ -73,7 +73,7 @@ class PlotWidget(FigureCanvas):
                 for i, channel in enumerate(dataset.channels):
                     if unit == 'Voltage':
                         self.ax.plot(time, channel.data, label=channel.name, color=COLORS[channel.name])
-                        self.ax.set_ylabel('Voltage (V)iii')#test String
+                        self.ax.set_ylabel('Voltage (V)')
                         self.ax.relim()
                         self.ax.autoscale_view()
                     else:  # Divisions

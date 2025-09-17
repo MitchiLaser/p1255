@@ -28,7 +28,7 @@ class P1255:
             socket.SOCK_STREAM,  # Socket type: TCPs
         )
 
-        self.sock.settimeout(1)  # 1 second timeout jetzt 5 wegen WLAN
+        self.sock.settimeout(1)  # 1 second timeout, am besten 5 bei WLAN
         # Connect to the client device
         try:
             self.sock.connect((str(address), port))
@@ -44,7 +44,7 @@ class P1255:
         try:
             # Send command to start streaming of binary data
             self.sock.send(b"STARTBIN")
-            self.sock.settimeout(1)  # 1 second timeout jetzt 5 wegen Wlan
+            self.sock.settimeout(1)  # 1 second timeout, am besten 5 bei Wlan
 
             # First information that is sent is the length of the dataset
             read = self.sock.recv_into(payload := bytearray(2), 2)
