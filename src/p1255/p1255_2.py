@@ -8,6 +8,22 @@ import numpy as np
 VERBOSE = True
 
 
+SCPI_RESPONSES = [
+    "1K",
+    "10K",
+    "100K",
+    "1M",
+    "10M",
+    "4",
+    "16",
+    "64",
+    "128",
+    "PEAK",
+    "SAMPle",
+    "AVERage",
+]
+
+
 class Data:
     def __init__(self, data: bytes):
         self.data = data
@@ -30,7 +46,7 @@ class P1255:
     def __init__(self):
         self.sock = None
         
-    def connect(self, ip: str, port: int = 3000, timeout = 50) -> None:
+    def connect(self, ip: str, port: int = 3000, timeout = 5) -> None:
         """Establish a TCP connection to the oscilloscope.
         
         Parameters
@@ -75,16 +91,40 @@ class P1255:
             self.disconnect()
             raise e
         
-    def send_ascii_command(self, command: str) -> None:
-        """Send an ASCII command to the oscilloscope.
+    def send_scpi_command(self, command: str) -> None:
+        """Send an SCPI command to the oscilloscope.
         
         Parameters
         ----------
         command : str
-            The ASCII command to send.
+            The SCPI command to send.
         """
         self.send_command(command.encode('ascii').hex())
-        
+
+    def receive_scpi_response(self) -> str:
+        """Receive an SCPI response from the oscilloscope.
+
+        Returns
+        -------
+        response : str
+            The received SCPI response.
+        """
+        if not self.sock:
+            raise ConnectionError("Not connected to the oscilloscope.")
+        response = ""
+        try:
+            while True:
+                response += self.sock.recv(1).decode('ascii')
+                if response in SCPI_RESPONSES:
+                    break
+        except TimeoutError:
+            print(response)
+            raise TimeoutError("Timeout while waiting for SCPI response.")
+        except OSError as e:
+            self.disconnect()
+            raise e
+        return response
+
     def receive_data(self) -> Data:
         """Receive data from the oscilloscope.
         
@@ -117,18 +157,8 @@ class P1255:
             raise e
         data = Data(bytes(data_buffer))
         return data
-    
-    def receive_ascii(self) -> str:
-        """Receive an ASCII response from the oscilloscope.
-        
-        Returns
-        -------
-        str
-            The received ASCII response.
-        """
-        while True:
-            print(self.sock.recv(1).decode('ascii'))
-    
+
+
     def interpret_waveform(self, data: Data) -> dict:
         """Interpret the waveform data received from the oscilloscope.
         
