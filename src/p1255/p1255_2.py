@@ -4,6 +4,7 @@ import ipaddress
 import hexdump
 import command_mappings as cm
 import numpy as np
+from pathlib import Path
 
 VERBOSE = True
 
@@ -238,4 +239,18 @@ class P1255:
         
         
         return head
+    
+    def interpret_bmp(self, data: Data, output: Path) -> dict:
+        """Interpret BMP image data received from the oscilloscope.
         
+        Parameters
+        ----------
+        data : Data
+            The raw BMP data received from the oscilloscope.
+        output : Path
+            The path to save the BMP file.
+        """
+        unknown = data.pop(8)
+        rest = data.pop(len(data))
+        with open(output, 'wb') as f:
+            f.write(rest)
