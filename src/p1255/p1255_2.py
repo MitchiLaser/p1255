@@ -221,7 +221,7 @@ class P1255:
             A dictionary containing the interpreted channel data.
         """
         
-        head = {
+        out = {
             'name': data.pop(3).decode('ascii'),
             '?1': data.pop(24),
             'timescale': data.pop(1)[0],
@@ -233,12 +233,9 @@ class P1255:
         }
         
         
-        # head['data_screen'] = (head['raw_data'] + head['offset_subdiv']) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
-        head['data_volt'] = (head['raw_data'] / 25) * list(cm.VOLTBASE.keys())[head['voltscale_index']]
-        
-        
-        
-        return head
+        # out['data_screen'] = (out['raw_data'] + out['offset_subdiv']) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
+        out['data_volt'] = (out['raw_data'] / 25) * list(cm.VOLTBASE.keys())[out['voltscale_index']]
+        return out
     
     def interpret_bmp(self, data: Data, output: Path) -> dict:
         """Interpret BMP image data received from the oscilloscope.
@@ -254,3 +251,31 @@ class P1255:
         rest = data.pop(len(data))
         with open(output, 'wb') as f:
             f.write(rest)
+
+    def get_waveform(self) -> dict:
+        """Get the waveform data from the oscilloscope.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the interpreted waveform data.
+        """
+        self.send_scpi_command(cm.GET_WAVEFORM)
+        data = self.receive_data()
+        wf_dict, channels = self.interpret_waveform(data)
+        for ch in channels:
+            ch_dict = self.interpret_channel(ch)
+            wf_dict[ch_dict['name']] = ch_dict
+        return wf_dict
+    
+    def get_bmp(self, output: Path) -> None:
+        """Get a BMP screenshot from the oscilloscope and save it to a file.
+        
+        Parameters
+        ----------
+        output : Path
+            The path to save the BMP file.
+        """
+        self.send_scpi_command(cm.GET_BMP)
+        data = self.receive_data()
+        self.interpret_bmp(data, output)

@@ -1,6 +1,10 @@
 import struct
 import ipaddress
 
+GET_WAVEFORM = "STARTBIN"
+GET_DEEP_WAVEFORM = "STARTMEMDEPTH"
+GET_BMP = "STARTBMP"
+
 CHANNEL = {1: "00", 2: "01"}
 TRIGGER_COUPLING = {'DC': "00", 'AC': "01", 'HF': "02", 'LF': "03"}
 TRIGGER_MODE = {'Auto': "00", 'Normal': "01", 'Single': "02"}
