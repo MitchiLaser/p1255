@@ -54,6 +54,13 @@ class PlotWidget(FigureCanvas):
         self.ax.clear()
         if dataset:
             if mode == 'Normal':
+                #war vorher unten, jetzt am Anfang für Übersichtlichkeit
+                if len(dataset.channels) < 1: 
+                    self.ax.text(0.5, 0.5, 'No channels in dataset',
+                    ha='center', va='center', transform=self.ax.transAxes)
+                    self.ax.grid(True, linestyle='--', alpha=0.5)
+                    self.draw()
+                    return
                 time = np.linspace(start=(-1) * dataset.channels[0].timescale / 2, stop=dataset.channels[0].timescale / 2, num=len(dataset.channels[0].data), endpoint=True)
                 if time[-1] < 1e-3:
                     time *= 1e6
@@ -76,6 +83,18 @@ class PlotWidget(FigureCanvas):
                         self.ax.set_ylim(-5, 5)
                 self.ax.legend()
             else:  # XY Plot
+                if len(dataset.channels) < 2:
+                # KEIN zusätzliches Pop-Up – nur freundlich im Plot anzeigen !!!
+                    self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2',
+                        ha='center', va='center', transform=self.ax.transAxes)
+                    if unit == 'Divisions':
+                        self.ax.yaxis.set_major_locator(MultipleLocator(1))
+                        self.ax.xaxis.set_major_locator(MultipleLocator(1))
+                        self.ax.set_ylim(-5, 5)
+                        self.ax.set_xlim(-5, 5)
+                    self.ax.grid(True, linestyle='--', alpha=0.5)
+                    self.draw()
+                    return
                 ch1 = dataset.channels[0]
                 ch2 = dataset.channels[1]
                 if unit == 'Voltage':
@@ -142,6 +161,7 @@ class MainWindow(QWidget):
         self.save_button.clicked.connect(self.save_data)
         self.unit_combo.currentIndexChanged.connect(self.update_current)
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
+        self._xy_popup_active = False #checkt ob schon ein Pop Up da ist 
 
         if self.use_alias:
             self.connect_to_ip()
@@ -183,6 +203,9 @@ class MainWindow(QWidget):
             self.stop_updating()
 
     def update_current(self):
+        # Erst sicherstellen, dass der Modus verfügbar ist
+        self._force_normal_if_xy_unavailable()
+        # Dann plotten
         self.plot_widget.update_plot(self.current_dataset, self.unit_combo.currentText(), self.display_mode_combo.currentText())
 
     def start_updating(self):
@@ -194,11 +217,54 @@ class MainWindow(QWidget):
         if self.timer:
             self.timer.stop()
             self.timer = None
+    from PyQt5.QtWidgets import QMessageBox
+
+    def _force_normal_if_xy_unavailable(self) -> bool:
+        """
+        Falls ein XY-Modus gewählt ist, aber weniger als zwei Kanäle vorhanden sind,
+        zeige ein modales Pop-Up. Erst nach OK wird auf 'Normal' zurückgeschaltet.
+        Gibt True zurück, wenn umgeschaltet wurde.
+        """
+        if self._xy_popup_active:
+            return False 
+        
+        mode = self.display_mode_combo.currentText()
+        # Nur reagieren, wenn nicht bereits 'Normal'
+        if mode == 'Normal':
+            return False
+
+        ds = getattr(self, "current_dataset", None)
+        channels_ok = (ds is not None) and hasattr(ds, "channels") and (len(ds.channels) >= 2)
+        if channels_ok:
+            return False
+        self._xy_popup_active = True
+        try:
+            #Pop-Up – blockiert, bis der/die Nutzer:in auf OK klickt
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle("XY-Modus not available")
+            msg.setText("You need CH1 and CH2.\nPlease connect both channels and press the red/yellow buttons.")
+            msg.setInformativeText("Set back to Normal by OK.")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setDefaultButton(QMessageBox.Ok)
+            msg.setModal(True)
+            msg.exec_()  # <— wartet auf OK
+
+        # Danach still auf 'Normal' setzen (ohne Signal-Schleifen)
+            idx = self.display_mode_combo.findText('Normal')
+            if idx != -1:
+                self.display_mode_combo.blockSignals(True)
+                self.display_mode_combo.setCurrentIndex(idx)
+                self.display_mode_combo.blockSignals(False)
+            return True
+        finally:
+            self._xy_popup_active = False
+
 
     def capture_single(self):
         try:
             self.current_dataset = self.p1255.capture()
-            self.plot_widget.update_plot(self.current_dataset, self.unit_combo.currentText(), self.display_mode_combo.currentText())
+            self.update_current()
         except ConnectionError:
             QMessageBox.critical(self, "Connection Error", "Connection lost.")
             self.toggle_run(False)
