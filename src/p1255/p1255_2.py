@@ -228,10 +228,14 @@ class P1255:
             '?2': data.pop(3), # im guessing these 3 bytes could be included in the timescale (they appear to be 0)
             'offset_subdiv': struct.unpack("<i", data.pop(4))[0],
             'voltscale_index': data.pop(1)[0],
-            '?3': data.pop(23), # im guessing 3 bytes could be included in the voltscale (they appear to be 0)
+            '?3': data.pop(3),
+            '?4': data.pop(8).hex(),
+            'frequency': struct.unpack("<f", data.pop(4))[0],
+            '?5': data.pop(8).hex(),
             'raw_data': np.array(struct.unpack("<" + "h" * (len(data) // 2), data.pop(len(data)))) # value in 1/25 of a division (not offset yet)
         }
         
+        print('factor: ', list(cm.VOLTBASE.keys())[out['voltscale_index']] / 25)
         
         # out['data_screen'] = (out['raw_data'] + out['offset_subdiv']) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
         out['data_volt'] = (out['raw_data'] / 25) * list(cm.VOLTBASE.keys())[out['voltscale_index']]
