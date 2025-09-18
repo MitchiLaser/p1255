@@ -101,7 +101,13 @@ class P1255:
             The SCPI command to send.
         """
         self.send_command(command.encode('ascii').hex())
-
+        
+    def send_modify_command(self, command: str) -> None:
+        length = len(command) // 2
+        length_str = struct.pack("<I", length).hex()
+        full_command = hexstr("M:") + length_str + command
+        self.send_command(full_command)
+        
     def receive_scpi_response(self) -> str:
         """Receive an SCPI response from the oscilloscope.
 
@@ -280,3 +286,139 @@ class P1255:
         self.send_scpi_command(cm.GET_BMP)
         data = self.receive_data()
         self.interpret_bmp(data, output)
+        
+    def set_ip_configuration(
+        self, 
+        ip = "192.168.1.72", 
+        port = 3000, 
+        subnet = "255.255.255.0", 
+        gateway = "192.168.1.1"
+        ):
+        """Set the IP configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        ip : str
+            The IP address to set.
+        port : int
+            The port number to set.
+        subnet : str
+            The subnet mask to set.
+        gateway : str
+            The gateway address to set.
+        """
+        cmd = cm.network(ip, port, gateway, subnet)
+        self.send_modify_command(cmd)
+        
+    def set_trigger_configuration(
+        self,
+        coupling = "DC",
+        mode = "AUTO",
+        slope = "RISING",
+        level = 0,
+        channel = 1,
+        type = "SINGLE",
+        ):
+        """Set the trigger configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        coupling : str
+            The coupling mode. One of 'AC', 'DC', 'LF', 'HF'
+        mode : str
+            The trigger mode. One of 'AUTO', 'NORM', 'SINGLE'
+        slope : str
+            The trigger slope. One of 'RISING', 'FALLING'
+        level : int
+            The trigger level in Volts. Range is +5V to -7V in steps of 40mV. (Will be rounded to nearest step)
+        channel : int
+            The channel to trigger on. 1 or 2
+        type : str
+            The trigger type. 'SINGLE' or 'ALTERNATE'
+        """
+        if coupling not in cm.TRIGGER_COUPLING:
+            raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.TRIGGER_COUPLING.keys())}.")
+        if mode not in cm.TRIGGER_MODE:
+            raise ValueError(f"Invalid trigger mode. Must be one of {list(cm.TRIGGER_MODE.keys())}.")
+        if slope not in cm.TRIGGER_SLOPE:
+            raise ValueError(f"Invalid trigger slope. Must be one of {list(cm.TRIGGER_SLOPE.keys())}.")
+        if channel not in cm.CHANNEL:
+            raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
+        if type not in cm.TRIGGER_TYPE:
+            raise ValueError(f"Invalid trigger type. Must be one of {list(cm.TRIGGER_TYPE.keys())}.")
+        if not (-7.0 <= level <= 5.0):
+            raise ValueError("Invalid trigger level. Must be between -7V and +5V.")
+        
+        repeating = (
+            hexstr("MTR")
+            + cm.TRIGGER_TYPE[type]
+            + cm.CHANNEL[channel]
+            )
+        cmd = (
+            repeating
+            + "02"
+            + cm.TRIGGER_COUPLING[coupling]
+            + repeating
+            + "03"
+            + cm.TRIGGER_MODE[mode]
+            + repeating
+            + "04"
+            + "00000000"
+            + repeating
+            + "05"
+            + cm.TRIGGER_SLOPE[slope]
+            + repeating
+            + "06"
+            + cm.trigger_voltage(level)
+        )
+        self.send_modify_command(cmd)
+        
+        
+    def set_channel_configuration(
+        self,
+        channel: int,
+        probe_rate: int = 1,
+        coupling: str = "DC",
+        voltbase_V: float = 0,
+    ):
+        """Set the channel configuration of the oscilloscope.
+        
+        Parameters
+        ----------
+        channel : int
+            The channel to configure. 1 or 2
+        probe_rate : int
+            The probe rate. One of 1, 10, 100, 1000
+        coupling : str
+            The coupling mode. One of 'DC', 'AC', 'GND'
+        voltbase_V : float
+            The voltbase in Volts. One of 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10
+        """
+        if channel not in cm.CHANNEL:
+            raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
+        if probe_rate not in cm.PROBERATE:
+            raise ValueError(f"Invalid probe rate. Must be one of {list(cm.PROBERATE.keys())}.")
+        if coupling not in cm.CHANNEL_COUPLING:
+            raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.CHANNEL_COUPLING.keys())}.")
+        if voltbase_V not in cm.VOLTBASE:
+            raise ValueError(f"Invalid voltbase. Must be one of {list(cm.VOLTBASE.keys())}.")
+        
+        cmd = (
+            hexstr("MCH")
+            + cm.CHANNEL[channel]
+            + hexstr("p")
+            + cm.PROBERATE[probe_rate]
+            + hexstr("c")
+            + cm.CHANNEL_COUPLING[coupling]
+            + hexstr("v")
+            + cm.VOLTBASE[voltbase_V]
+        )
+        self.send_modify_command(cmd)
+        
+    
+
+def hexstr(ascii):
+    return ascii.encode("ASCII").hex()
+
+def ascii(hexstr):
+    return bytes.fromhex(hexstr).decode("ASCII")

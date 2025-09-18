@@ -9,6 +9,8 @@ CHANNEL = {1: "00", 2: "01"}
 TRIGGER_COUPLING = {'DC': "00", 'AC': "01", 'HF': "02", 'LF': "03"}
 TRIGGER_MODE = {'Auto': "00", 'Normal': "01", 'Single': "02"}
 TRIGGER_SLOPE = {'Rising': "00", 'Falling': "01"}
+TRIGGER_TYPE = {'SINGLE': 's'.encode('ASCII').hex(),
+                'ALTERNATE': 'a'.encode('ASCII').hex()}
 PROBERATE = {1: "00", 10: "01", 100: "02", 1000: "03"}
 CHANNEL_COUPLING = {'DC': "00", 'AC': "01", 'GND': "02"}
 VOLTBASE = {
