@@ -149,7 +149,7 @@ class MainWindow(QWidget):
         if self.use_alias:
             self.connection_stack.setCurrentIndex(1)
             self.alias_combo.addItems(self.aliases.keys())
-            self.alias_combo.currentIndexChanged.connect(self.connect_to_ip)
+            self.alias_combo.currentIndexChanged.connect(self.disconnect) # stellt sicher, dass bei Alias Wechsel der Connect Button sich wieder in Default stellt.
         else:
             self.connection_stack.setCurrentIndex(0)
 
@@ -163,9 +163,7 @@ class MainWindow(QWidget):
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
         self._xy_popup_active = False #checkt ob schon ein Pop Up da ist 
 
-        if self.use_alias:
-            self.connect_to_ip()
-        self.capture_single()
+        self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to 
 
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
@@ -182,6 +180,7 @@ class MainWindow(QWidget):
             self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
         except Exception as e:
             QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
+            self.connect_button.setText("Connect")
             self.connect_button.setStyleSheet("color: black;")
             return
         self.connect_button.setText("Connected")
