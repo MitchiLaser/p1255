@@ -33,7 +33,9 @@ The Oscilloscope is connected to a network via a LAN cable. The network interfac
 
 ### GUI 
 
-The GUI can be started in various modes. By default, the software starts with a free input field for the IPv4 address and the port of the oscilloscope in the network.
+The GUI can be started in various modes by the command line. By default, the software can be started after installing system-wide or in a Virtual Environment via the command `peak-view`. 
+
+It starts with a free input field for the IPv4 address and the port of the oscilloscope in the network.
 
 *Fig. 1*: Start Screen of the GUI.  
                     ![Figure 1](docs/Start_screen.png)
@@ -54,7 +56,7 @@ To Save the data, just click on the "Save Data" button, the data can be saved as
 
 ### Command Line
 
-The software can also be started by the command line, if the software is installed system-wide or started inside a Virtual Environment.
+Capturing data can also be done via the command line, if the software is installed system-wide or started inside a Virtual Environment.
 
 An example for capturing, decoding and exporting the data as a .csv-file: 
 ```bash
