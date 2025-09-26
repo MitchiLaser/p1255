@@ -40,7 +40,7 @@ It starts with a free input field for the IPv4 address and the port of the oscil
 *Fig. 1*: Start Screen of the GUI.  
                     ![Figure 1](docs/Start_screen.png)
 
-By inserting the IPv4 address of the device and clicking on the "connect" button the software connects to the oscilloscope. 
+By inserting the IPv4 address of the device and clicking on the "Connect" button the software connects to the oscilloscope. 
 
 
 *Fig. 2*: Display Oscilloscope Data.  
