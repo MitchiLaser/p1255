@@ -44,7 +44,7 @@ By inserting the IPv4 address of the device and clicking on the connect-Button t
 *Fig. 2*: Start Screen of the GUI.  
                     ![Figure 2](docs/Readout.png)
 
-When the software is connected to the oscilloscope, pressing the “Run Continuously” or “capture single” buttons will start the visualization of the current oscilloscope display in the software.
+When the software is connected to the oscilloscope, pressing the “Run Continuously” or “Capture Single” buttons will start the visualization of the current oscilloscope display in the software.
 
 When both channels are connected, both channels are displayed and XY-mode can be activated.
 
@@ -54,3 +54,10 @@ To Save the data, just click on the "Save Data" button, the data can be saved as
 
 ### Command Line
 
+The software can also be started by the command line, if the software is installed system-wide or started inside a Virtual Environment.
+
+An example for capturing, decoding and exporting the data as a .csv-file: 
+```bash
+peak-capture -a 10.42.0.173 -o ~/data.csv -f csv
+```
+The command `peak-capture --help`  also provides assistance.
