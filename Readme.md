@@ -41,7 +41,7 @@ The GUI can be started in various modes. By default, the software starts with a 
 By inserting the IPv4 address of the device and clicking on the connect-Button the software connects to the oscilloscope. 
 
 
-*Fig. 2*: Start Screen of the GUI.  
+*Fig. 2*: Display Oscilloscope Data.  
                     ![Figure 2](docs/Readout.png)
 
 When the software is connected to the oscilloscope, pressing the “Run Continuously” or “Capture Single” buttons will start the visualization of the current oscilloscope display in the software.
