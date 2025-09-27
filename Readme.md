@@ -54,6 +54,25 @@ By Changing from "Voltage" to "Divisions" it is possible to get the identical Y-
 
 To Save the data, just click on the "Save Data" button, the data can be saved as .csv, .json and .npz file format.
 
+In case there are several oscilloscopes in the network, it is recommended to create an alias file as a .yaml with the network addresses of the individual oscilloscopes in the home directory :
+
+*Fig. 3*: Example for Alias file.  
+                    ![Figure 3](docs/Alias_file.png)
+
+To ensure that the software recognizes the file automatically, it must be named as 
+```bash
+p1255_ip_aliases.yaml
+```
+. Otherwise, in the program code [gui.py](src/p1255/gui.py), the line 
+```bash
+ALIAS_FILE = Path().home() / "p1255_ip_aliases.yaml"
+```
+must be adjusted.
+
+*Fig. 4*: Start Screen of the GUI with Drop-down menu .  
+                    ![Figure 4](docs/Drop_down.png)
+
+Now the correct oscilloscope can be selected from the drop-down menu and be connected.
 ### Command Line
 
 Capturing data can also be done via the command line, if the software is installed system-wide or started inside a Virtual Environment.
