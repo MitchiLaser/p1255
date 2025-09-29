@@ -38,13 +38,13 @@ The GUI can be started in various modes by the command line. By default, the sof
 On start the input field for the IPv4 address is empty, as well as the network port, which is set to the default value of 3000.
 
 *Fig. 1*: Start Screen of the GUI.  
-                    ![Figure 1](docs/Start_screen.png)
+                    ![Figure 1](https://gitlab.kit.edu/kit/etp-lehre/praktoolkit/p1255/-/raw/master/docs/Start_screen.png)
 
 By inserting the IPv4 address of the device and clicking on the "Connect" button the software connects to the oscilloscope. 
 
 
 *Fig. 2*: Display Oscilloscope Data.  
-                    ![Figure 2](docs/Readout.png)
+                    ![Figure 2](https://gitlab.kit.edu/kit/etp-lehre/praktoolkit/p1255/-/raw/master/docs/Readout.png)
 
 When the software is connected to the oscilloscope, pressing the “Run Continuously” or “Capture Single” buttons will start the visualization of the current oscilloscope display in the software. "Capture Single" only updates the screen once per click, while "Run Continuously" updates the screen twice per second.
 
@@ -72,7 +72,7 @@ This `yaml` file contains a list of all available oscilloscopes with the corresp
 ```
 
 *Fig. 3*: Start Screen of the GUI with Drop-down menu .  
-                    ![Figure 3](docs/Drop_down.png)
+                    ![Figure 3](https://gitlab.kit.edu/kit/etp-lehre/praktoolkit/p1255/-/raw/master/docs/Drop_down.png)
 
 Now the correct oscilloscope can be selected from the drop-down menu and be connected.
 
