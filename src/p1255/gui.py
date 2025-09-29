@@ -22,7 +22,7 @@ import numpy as np
 
 plt.style.use('dark_background')
 
-ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
+ALIAS_FILE = Path().home() / "p1255_ip_aliases.yaml"
 COLORS = {
     "CH1": 'red',
     "CH2": 'yellow',
