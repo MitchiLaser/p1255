@@ -22,7 +22,7 @@ import numpy as np
 
 plt.style.use('dark_background')
 
-ALIAS_FILE = Path().home() / "p1255_ip_aliases.yaml"
+ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
 COLORS = {
     "CH1": 'red',
     "CH2": 'yellow',
@@ -55,7 +55,7 @@ class PlotWidget(FigureCanvas):
         if dataset:
             if mode == 'Normal':
                 #war vorher unten, jetzt am Anfang für Übersichtlichkeit
-                if len(dataset.channels) < 1: 
+                if len(dataset.channels) < 1:
                     self.ax.text(0.5, 0.5, 'No channels in dataset',
                     ha='center', va='center', transform=self.ax.transAxes)
                     self.ax.grid(True, linestyle='--', alpha=0.5)
@@ -161,9 +161,9 @@ class MainWindow(QWidget):
         self.save_button.clicked.connect(self.save_data)
         self.unit_combo.currentIndexChanged.connect(self.update_current)
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
-        self._xy_popup_active = False #checkt ob schon ein Pop Up da ist 
+        self._xy_popup_active = False #checkt ob schon ein Pop Up da ist
 
-        self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to 
+        self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
 
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
@@ -225,8 +225,8 @@ class MainWindow(QWidget):
         Gibt True zurück, wenn umgeschaltet wurde.
         """
         if self._xy_popup_active:
-            return False 
-        
+            return False
+
         mode = self.display_mode_combo.currentText()
         # Nur reagieren, wenn nicht bereits 'Normal'
         if mode == 'Normal':
