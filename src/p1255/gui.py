@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QFileDialog,
+    QMessageBox,
 )
 from PyQt5 import uic
 from PyQt5.QtCore import QTimer
@@ -13,7 +14,6 @@ import os
 from p1255.p1255 import P1255, Waveform
 from p1255.constants import CONNECTION_HELP
 import ipaddress
-from PyQt5.QtWidgets import QMessageBox
 from pathlib import Path
 import yaml
 import importlib.resources
@@ -54,73 +54,59 @@ class PlotWidget(FigureCanvas):
         if mode not in ('Normal', 'X: Ch1, Y: Ch2', 'X: Ch2, Y: Ch1'):
             raise ValueError("Mode must be 'Normal', 'X: Ch1, Y: Ch2', or 'X: Ch2, Y: Ch1'")
         self.ax.clear()
-        if wf:
-            if mode == 'Normal':
-                #war vorher unten, jetzt am Anfang für Übersichtlichkeit
-                if len(wf.channels) < 1:
-                    self.ax.text(0.5, 0.5, 'No channels in dataset',
-                    ha='center', va='center', transform=self.ax.transAxes)
-                    self.ax.grid(True, linestyle='--', alpha=0.5)
-                    self.draw()
-                    return
-                time = wf.time
-                if time[-1] < 1e-3:
-                    time *= 1e6
-                    self.ax.set_xlabel('Time (µs)')
-                elif time[-1] < 1:
-                    time *= 1e3
-                    self.ax.set_xlabel('Time (ms)')
-                else:
-                    self.ax.set_xlabel('Time (s)')
-                for i, channel in enumerate(wf.channels):
-                    if unit == 'Voltage':
-                        self.ax.plot(time, channel.data_volt, label=channel.name, color=COLORS[channel.name])
-                        self.ax.set_ylabel('Voltage (V)')
-                        self.ax.relim()
-                        self.ax.autoscale_view()
-                    else:  # Divisions
-                        self.ax.plot(time, channel.data_screen, label=channel.name, color=COLORS[channel.name])
-                        self.ax.yaxis.set_major_locator(MultipleLocator(1))
-                        self.ax.set_ylabel('Divisions')
-                        self.ax.set_ylim(-5, 5)
-                self.ax.legend()
-            else:  # XY Plot
-                if len(wf.channels) < 2:
-                # KEIN zusätzliches Pop-Up – nur freundlich im Plot anzeigen !!!
-                    self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2',
+        
+        # get the data in the desired unit
+        data = []
+        if unit == 'Divisions':
+            for channel in wf.channels:
+                self.ax.set_xlabel('Divisions')
+                self.ax.set_ylabel('Divisions')
+                data.append(channel.data_screen)
+        else:  # Voltage
+            self.ax.set_xlabel('Voltage (V)')
+            self.ax.set_ylabel('Voltage (V)')
+            for channel in wf.channels:
+                data.append(channel.data_volt)
+                
+        if not data:
+            self.ax.text(0.5, 0.5, 'No channels in dataset',
                         ha='center', va='center', transform=self.ax.transAxes)
-                    if unit == 'Divisions':
-                        self.ax.yaxis.set_major_locator(MultipleLocator(1))
-                        self.ax.xaxis.set_major_locator(MultipleLocator(1))
-                        self.ax.set_ylim(-5, 5)
-                        self.ax.set_xlim(-5, 5)
-                    self.ax.grid(True, linestyle='--', alpha=0.5)
-                    self.draw()
-                    return
-                ch1 = wf.channels[0]
-                ch2 = wf.channels[1]
-                if unit == 'Voltage':
-                    ch1 = ch1.data_volt
-                    ch2 = ch2.data_volt
-                elif unit == 'Divisions':
-                    ch1 = ch1.data_screen
-                    ch2 = ch2.data_screen
-                    self.ax.yaxis.set_major_locator(MultipleLocator(1))
-                    self.ax.xaxis.set_major_locator(MultipleLocator(1))
-                    self.ax.set_ylim(-5, 5)
-                    self.ax.set_xlim(-5, 5)
-                if mode == 'X: Ch1, Y: Ch2':
-                    self.ax.plot(ch1, ch2)
-                    self.ax.set_xlabel(f'{wf.channels[0].name} ({unit})')
-                    self.ax.set_ylabel(f'{wf.channels[1].name} ({unit})')
-                else:  # Ch2/Ch1
-                    self.ax.plot(ch2, ch1)
-                    self.ax.set_xlabel(f'{wf.channels[1].name} ({unit})')
-                    self.ax.set_ylabel(f'{wf.channels[0].name} ({unit})')
-
-        else:
-            self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
+            self.ax.grid(True, linestyle='--', alpha=0.5)
+            self.draw()
+            return
+        
+        if mode == 'Normal':
+            self.ax.set_xlabel('Time (s)')
+            for i, channel in enumerate(wf.channels):
+                self.ax.plot(wf.time, data[i], label=channel.name, color=COLORS[channel.name])
+            self.ax.legend()
+        else: # XY Plot
+            if len(wf.channels) < 2:
+                self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2',
+                            ha='center', va='center', transform=self.ax.transAxes)
+                self.ax.grid(True, linestyle='--', alpha=0.5)
+                self.draw()
+                return
+            if mode == 'X: Ch1, Y: Ch2':
+                x = data[0]
+                y = data[1]
+            else:  # Ch2/Ch1
+                x = data[1]
+                y = data[0]
+            self.ax.plot(x, y)
+            
         self.ax.grid(True, linestyle='--', alpha=0.5)
+        
+
+        self.ax.relim()
+        self.ax.autoscale_view()
+        if unit == 'Divisions':
+            self.ax.yaxis.set_major_locator(MultipleLocator(1))
+            self.ax.set_ylim(-5, 5)
+            if mode != 'Normal':
+                self.ax.xaxis.set_major_locator(MultipleLocator(1))
+                self.ax.set_xlim(-5, 5)
+        
         self.draw()
 
 
@@ -205,9 +191,6 @@ class MainWindow(QWidget):
             self.stop_updating()
 
     def update_current(self):
-        # Erst sicherstellen, dass der Modus verfügbar ist
-        self._force_normal_if_xy_unavailable()
-        # Dann plotten
         self.plot_widget.update_plot(self.current_wf, self.unit_combo.currentText(), self.display_mode_combo.currentText())
 
     def start_updating(self):
@@ -219,48 +202,6 @@ class MainWindow(QWidget):
         if self.timer:
             self.timer.stop()
             self.timer = None
-    from PyQt5.QtWidgets import QMessageBox
-
-    def _force_normal_if_xy_unavailable(self) -> bool:
-        """
-        Falls ein XY-Modus gewählt ist, aber weniger als zwei Kanäle vorhanden sind,
-        zeige ein modales Pop-Up. Erst nach OK wird auf 'Normal' zurückgeschaltet.
-        Gibt True zurück, wenn umgeschaltet wurde.
-        """
-        if self._xy_popup_active:
-            return False
-
-        mode = self.display_mode_combo.currentText()
-        # Nur reagieren, wenn nicht bereits 'Normal'
-        if mode == 'Normal':
-            return False
-
-        ds = getattr(self, "current_dataset", None)
-        channels_ok = (ds is not None) and hasattr(ds, "channels") and (len(ds.channels) >= 2)
-        if channels_ok:
-            return False
-        self._xy_popup_active = True
-        try:
-            #Pop-Up – blockiert, bis der/die Nutzer:in auf OK klickt
-            msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Warning)
-            msg.setWindowTitle("XY-Modus not available")
-            msg.setText("You need CH1 and CH2.\nPlease connect both channels and press the red/yellow buttons.")
-            msg.setInformativeText("Set back to Normal by OK.")
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.setDefaultButton(QMessageBox.Ok)
-            msg.setModal(True)
-            msg.exec_()  # <— wartet auf OK
-
-        # Danach still auf 'Normal' setzen (ohne Signal-Schleifen)
-            idx = self.display_mode_combo.findText('Normal')
-            if idx != -1:
-                self.display_mode_combo.blockSignals(True)
-                self.display_mode_combo.setCurrentIndex(idx)
-                self.display_mode_combo.blockSignals(False)
-            return True
-        finally:
-            self._xy_popup_active = False
 
 
     def capture_single(self):
