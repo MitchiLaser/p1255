@@ -42,6 +42,6 @@ def cli():
 
     scope = p1255.P1255()
     scope.connect(args.address, args.port)
-    dataset = scope.capture()
+    dataset = scope.get_waveform()
     dataset.save(args.output, args.format)
     del scope
