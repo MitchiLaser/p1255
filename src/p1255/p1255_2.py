@@ -33,6 +33,8 @@ class Data:
         hexdump.hexdump(self.data)
         
     def pop(self, length: int) -> bytes:
+        if len(self.data) < length:
+            raise ValueError("Not enough data to pop.")
         chunk = self.data[:length]
         self.data = self.data[length:]
         return chunk
@@ -158,7 +160,8 @@ class P1255:
         try:
             while received < length:
                 received += self.sock.recv_into(memoryview(data_buffer)[received:])
-                print(f"Received {received}/{length} bytes of data.")
+                if VERBOSE:
+                    print(f"Received {received}/{length} bytes of data.")
         except OSError as e:
             self.disconnect()
             raise e
@@ -197,7 +200,7 @@ class P1255:
             'SN': data.pop(12).decode('ascii'),
             '?3': data.pop(19),
             'n_channels': data.pop(1)[0].bit_count(),
-            '?4': data.pop(12),
+            '?4': data.pop(14),
         }
         
         # split the rest of the data into channels
@@ -270,10 +273,10 @@ class P1255:
         self.send_scpi_command(cm.GET_WAVEFORM)
         data = self.receive_data()
         wf_dict, channels = self.interpret_waveform(data)
+        ch_out = []
         for ch in channels:
-            ch_dict = self.interpret_channel(ch)
-            wf_dict[ch_dict['name']] = ch_dict
-        return wf_dict
+            ch_out.append(self.interpret_channel(ch))
+        return wf_dict, ch_out
     
     def get_bmp(self, output: Path) -> None:
         """Get a BMP screenshot from the oscilloscope and save it to a file.
@@ -379,7 +382,7 @@ class P1255:
         channel: int,
         probe_rate: int = 1,
         coupling: str = "DC",
-        voltbase_V: float = 0,
+        voltbase_V: float = 1.0,
     ):
         """Set the channel configuration of the oscilloscope.
         
