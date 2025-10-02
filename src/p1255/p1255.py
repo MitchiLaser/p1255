@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-VERBOSE = True
+VERBOSE = False
 
 
 SCPI_RESPONSES = [

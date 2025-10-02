@@ -12,7 +12,7 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import os
 from p1255.p1255 import P1255, Waveform
-from p1255.constants import CONNECTION_HELP
+from p1255.command_mappings import CONNECTION_HELP
 import ipaddress
 from pathlib import Path
 import yaml
@@ -152,7 +152,7 @@ class MainWindow(QWidget):
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
         self._xy_popup_active = False #checkt ob schon ein Pop Up da ist
 
-        self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
+        #self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
 
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
