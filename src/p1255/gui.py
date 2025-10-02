@@ -35,13 +35,15 @@ class PlotWidget(FigureCanvas):
         super().__init__(self.fig)
         self.ax = self.fig.add_subplot(111)
 
-    def update_plot(self, dataset, unit, mode):
+    def update_plot(self, wf_dict, channels, unit, mode):
         """Update the plot with data and unit
 
         Parameters
         ----------
-        dataset : Dataset
-            The dataset to plot.
+        wf_dict : dict
+            The waveform dictionary containing channel data.
+        channels : list
+            The list of channels to plot.
         unit : str
             The unit to plot ('Voltage' or 'Divisions').
         mode : str
@@ -52,16 +54,16 @@ class PlotWidget(FigureCanvas):
         if mode not in ('Normal', 'X: Ch1, Y: Ch2', 'X: Ch2, Y: Ch1'):
             raise ValueError("Mode must be 'Normal', 'X: Ch1, Y: Ch2', or 'X: Ch2, Y: Ch1'")
         self.ax.clear()
-        if dataset:
+        if wf_dict and channels:
             if mode == 'Normal':
                 #war vorher unten, jetzt am Anfang für Übersichtlichkeit
-                if len(dataset.channels) < 1:
+                if len(channels) < 1:
                     self.ax.text(0.5, 0.5, 'No channels in dataset',
                     ha='center', va='center', transform=self.ax.transAxes)
                     self.ax.grid(True, linestyle='--', alpha=0.5)
                     self.draw()
                     return
-                time = np.linspace(start=(-1) * dataset.channels[0].timescale / 2, stop=dataset.channels[0].timescale / 2, num=len(dataset.channels[0].data), endpoint=True)
+                time = np.linspace(start=(-1) * channels[0]['timescale'] / 2, stop=channels[0]['timescale'] / 2, num=len(channels[0]['raw_data']), endpoint=True)
                 if time[-1] < 1e-3:
                     time *= 1e6
                     self.ax.set_xlabel('Time (µs)')
@@ -70,20 +72,20 @@ class PlotWidget(FigureCanvas):
                     self.ax.set_xlabel('Time (ms)')
                 else:
                     self.ax.set_xlabel('Time (s)')
-                for i, channel in enumerate(dataset.channels):
+                for i, channel in enumerate(channels):
                     if unit == 'Voltage':
-                        self.ax.plot(time, channel.data, label=channel.name, color=COLORS[channel.name])
+                        self.ax.plot(time, channel['data_volt'], label=channel['name'], color=COLORS[channel['name']])
                         self.ax.set_ylabel('Voltage (V)')
                         self.ax.relim()
                         self.ax.autoscale_view()
                     else:  # Divisions
-                        self.ax.plot(time, channel.data_divisions, label=channel.name, color=COLORS[channel.name])
+                        self.ax.plot(time, channel['data_screen'], label=channel['name'], color=COLORS[channel['name']])
                         self.ax.yaxis.set_major_locator(MultipleLocator(1))
                         self.ax.set_ylabel('Divisions')
                         self.ax.set_ylim(-5, 5)
                 self.ax.legend()
             else:  # XY Plot
-                if len(dataset.channels) < 2:
+                if len(channels) < 2:
                 # KEIN zusätzliches Pop-Up – nur freundlich im Plot anzeigen !!!
                     self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2',
                         ha='center', va='center', transform=self.ax.transAxes)
@@ -95,26 +97,26 @@ class PlotWidget(FigureCanvas):
                     self.ax.grid(True, linestyle='--', alpha=0.5)
                     self.draw()
                     return
-                ch1 = dataset.channels[0]
-                ch2 = dataset.channels[1]
+                ch1 = channels[0]
+                ch2 = channels[1]
                 if unit == 'Voltage':
-                    ch1 = ch1.data
-                    ch2 = ch2.data
+                    ch1 = ch1['data_volt']
+                    ch2 = ch2['data_volt']
                 elif unit == 'Divisions':
-                    ch1 = ch1.data_divisions
-                    ch2 = ch2.data_divisions
+                    ch1 = ch1['data_screen']
+                    ch2 = ch2['data_screen']
                     self.ax.yaxis.set_major_locator(MultipleLocator(1))
                     self.ax.xaxis.set_major_locator(MultipleLocator(1))
                     self.ax.set_ylim(-5, 5)
                     self.ax.set_xlim(-5, 5)
                 if mode == 'X: Ch1, Y: Ch2':
                     self.ax.plot(ch1, ch2)
-                    self.ax.set_xlabel(f'{dataset.channels[0].name} ({unit})')
-                    self.ax.set_ylabel(f'{dataset.channels[1].name} ({unit})')
+                    self.ax.set_xlabel(f'{channels[0]["name"]} ({unit})')
+                    self.ax.set_ylabel(f'{channels[1]["name"]} ({unit})')
                 else:  # Ch2/Ch1
                     self.ax.plot(ch2, ch1)
-                    self.ax.set_xlabel(f'{dataset.channels[1].name} ({unit})')
-                    self.ax.set_ylabel(f'{dataset.channels[0].name} ({unit})')
+                    self.ax.set_xlabel(f'{channels[1]["name"]} ({unit})')
+                    self.ax.set_ylabel(f'{channels[0]["name"]} ({unit})')
 
         else:
             self.ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center')
@@ -137,7 +139,8 @@ class MainWindow(QWidget):
         self.saving_directory = os.getcwd()
 
         self.p1255 = P1255()
-        self.current_dataset = None
+        self.wf_dict = None
+        self.channels = []
 
         if Path(ALIAS_FILE).is_file() and not self.disable_aliases:
             self.use_alias = True
@@ -177,7 +180,7 @@ class MainWindow(QWidget):
             port = self.port_input.text()
         print(f"Connecting to {ip}:{port}...")
         try:
-            self.p1255.connect(ipaddress.IPv4Address(ip), int(port))
+            self.p1255.connect(str(ipaddress.IPv4Address(ip)), int(port))
         except Exception as e:
             QMessageBox.critical(self, "Connection Error", f"Failed to connect to the oscilloscope: {e}")
             self.connect_button.setText("Connect")
@@ -205,12 +208,12 @@ class MainWindow(QWidget):
         # Erst sicherstellen, dass der Modus verfügbar ist
         self._force_normal_if_xy_unavailable()
         # Dann plotten
-        self.plot_widget.update_plot(self.current_dataset, self.unit_combo.currentText(), self.display_mode_combo.currentText())
+        self.plot_widget.update_plot(self.wf_dict, self.channels, self.unit_combo.currentText(), self.display_mode_combo.currentText())
 
     def start_updating(self):
         self.timer = QTimer()
         self.timer.timeout.connect(self.capture_single)
-        self.timer.start(500)  # milliseconds
+        self.timer.start(2000)  # milliseconds
 
     def stop_updating(self):
         if self.timer:
@@ -262,7 +265,7 @@ class MainWindow(QWidget):
 
     def capture_single(self):
         try:
-            self.current_dataset = self.p1255.capture()
+            self.wf_dict, self.channels = self.p1255.get_waveform()
             self.update_current()
         except ConnectionError:
             QMessageBox.critical(self, "Connection Error", "Connection lost.")
@@ -274,6 +277,7 @@ class MainWindow(QWidget):
             self.disconnect()
 
     def save_data(self):
+        raise NotImplementedError("Saving data is not implemented yet.")
         if not self.current_dataset:
             print("No data to save.")
             return
