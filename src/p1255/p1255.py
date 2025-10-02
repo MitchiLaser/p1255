@@ -5,6 +5,8 @@ import hexdump
 from p1255 import command_mappings as cm
 import numpy as np
 from pathlib import Path
+import pandas as pd
+import yaml
 
 VERBOSE = True
 
@@ -44,6 +46,103 @@ class Data:
 
     def copy(self) -> "Data":
         return Data(self.data)
+    
+    
+class Waveform:
+    class Channel:
+        def __init__(self, data: Data, deep: bool = False):
+            self.data = data
+            self.deep = deep
+            if self.deep:
+                raise NotImplementedError("Deep waveform not implemented yet.")
+            self.interpret_header()
+            self.calculate_data()
+            
+        def interpret_header(self):
+            self.name = self.data.pop(3).decode('ascii')
+            self.unknown_1 = self.data.pop(24)
+            self.total_time_s = cm.calc_timescale(self.data.pop(1)[0])
+            self.unknown_2 = self.data.pop(3) # im guessing these 3
+            self.offset_subdiv = struct.unpack("<i", self.data.pop(4))[0]
+            self.voltscale_index = self.data.pop(1)[0]
+            self.unknown_3 = self.data.pop(3)
+            self.unknown_4 = self.data.pop(8).hex() #something with the trigger?
+            self.frequency = struct.unpack("<f", self.data.pop(4))[0]
+            self.unknown_5 = self.data.pop(8).hex()
+            
+            self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data)))) # value in 1/25
+            self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
+        
+        def calculate_data(self):
+            self.data_screen = (self.data_raw + self.offset_subdiv) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
+            self.data_volt = (self.data_raw / 25) * list(cm.VOLTBASE.keys())[self.voltscale_index]
+            
+    def __init__(self, data: Data, deep: bool = False):
+        self.data = data
+        self.deep = deep
+        self.interpret_header()
+        self.split_channels()
+        self.add_important_info()
+        
+    def interpret_header(self):
+        self.unknown_1 = self.data.pop(8)
+        self.unknown_2 = self.data.pop(10)
+        self.serial_number = self.data.pop(12).decode('ascii')
+        self.unknown_3 = self.data.pop(19)
+        self.n_channels = self.data.pop(1)[0].bit_count()
+        self.unknown_4 = self.data.pop(12)
+        
+    def split_channels(self):
+        if self.n_channels is None:
+            raise ValueError("Header must be interpreted before splitting channels.")
+        self.channels = []
+        if len(self.data) % self.n_channels != 0:
+            raise ValueError("Data length is not a multiple of the number of channels.")
+        len_per_channel = len(self.data) // self.n_channels
+        for i in range(self.n_channels):
+            # assume all channels are the same length
+            self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), deep=self.deep))
+            
+    def add_important_info(self):
+        self.data_screen = {ch.name: ch.data_screen for ch in self.channels}
+        self.data_volt = {ch.name: ch.data_volt for ch in self.channels}
+        self.time = np.linspace(start=(-1) * self.channels[0].total_time_s / 2, stop=self.channels[0].total_time_s / 2, num=len(self.channels[0].data_raw), endpoint=True)
+        
+        
+    def save(self, path: Path, fmt='csv') -> None:
+        if fmt == 'csv':
+            df = pd.DataFrame({'Time': self.time, **self.data_volt})
+            df.to_csv(path.with_name(f"{path.stem}.csv"), index=False)
+        elif fmt == 'yaml':
+            all = {
+                '?1': self.unknown_1.hex(),
+                '?2': self.unknown_2.hex(),
+                'Serial Number': self.serial_number,
+                '?3': self.unknown_3.hex(),
+                '?4': self.unknown_4.hex(),
+                'Channels': {
+                    ch.name: {
+                        '?1': ch.unknown_1.hex(),
+                        'Total Time (s)': ch.total_time_s,
+                        '?2': ch.unknown_2.hex(),
+                        'Offset (subdiv)': ch.offset_subdiv,
+                        'Voltscale Index': ch.voltscale_index,
+                        '?3': ch.unknown_3.hex(),
+                        '?4': ch.unknown_4,
+                        'Frequency (Hz)': ch.frequency,
+                        '?5': ch.unknown_5,
+                        'Sample Time (ns)': ch.sample_time_ns,
+                        'Data Screen (subdiv)': ch.data_screen.tolist(),
+                        'Data Volt (V)': ch.data_volt.tolist(),
+                    } for ch in self.channels
+                }
+            }
+            with open(path.with_name(f"{path.stem}.yaml"), 'w') as f:
+                yaml.dump(all, f)
+        else:
+            raise ValueError("Format must be 'csv' or 'yaml'.")
+
+        
 
 
 
@@ -170,84 +269,6 @@ class P1255:
         data = Data(bytes(data_buffer))
         return data
 
-
-    def interpret_waveform(self, data: Data) -> dict:
-        """Interpret the waveform data received from the oscilloscope.
-        
-        Parameters
-        ----------
-        data : Data
-            The raw data received from the oscilloscope.
-        
-        """
-        # the first 8 bytes i dont know what they are
-        # then 10 more bytes i dont know what they are
-        # then 12 bytes of serial number
-        # then 19 bytes i dont know what they are
-        # then 1 byte where each bit represents an active channel
-        # then 12 bytes of unknown data
-        
-        
-        """
-        
-        SP is the sampling Period 
-        
-        
-        """
-        
-        
-        head = {
-            '?1': data.pop(8),
-            '?2': data.pop(10),
-            'SN': data.pop(12).decode('ascii'),
-            '?3': data.pop(19),
-            'n_channels': data.pop(1)[0].bit_count(),
-            '?4': data.pop(12),
-        }
-        
-        # split the rest of the data into channels
-        len_remaining = len(data)
-        n_channels = head['n_channels']
-        if len_remaining % n_channels != 0:
-            raise ValueError("Data length is not a multiple of the number of channels.")
-        len_per_channel = len_remaining // n_channels
-        
-        channels = [Data(data.pop(len_per_channel)) for _ in range(n_channels)]
-        
-        return head, channels
-    
-    def interpret_channel(self, data: Data) -> dict:
-        """Interpret a single channel of waveform data.
-        
-        Parameters
-        ----------
-        data : Data
-            The raw data for a single channel.
-            
-        Returns
-        -------
-        dict
-            A dictionary containing the interpreted channel data.
-        """
-        
-        out = {
-            'name': data.pop(3).decode('ascii'),
-            '?1': data.pop(24),
-            'timescale': cm.calc_timescale(data.pop(1)[0]),
-            '?2': data.pop(3), # im guessing these 3 bytes could be included in the timescale (they appear to be 0)
-            'offset_subdiv': struct.unpack("<i", data.pop(4))[0],
-            'voltscale_index': data.pop(1)[0],
-            '?3': data.pop(3),
-            '?4': data.pop(8).hex(), #something with the trigger?
-            'frequency': struct.unpack("<f", data.pop(4))[0],
-            '?5': data.pop(8).hex(),
-            'raw_data': np.array(struct.unpack("<" + "h" * (len(data) // 2), data.pop(len(data)))) # value in 1/25 of a division (not offset yet)
-        }
-        
-        
-        out['data_screen'] = (out['raw_data'] + out['offset_subdiv']) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
-        out['data_volt'] = (out['raw_data'] / 25) * list(cm.VOLTBASE.keys())[out['voltscale_index']]
-        return out
     
     def interpret_bmp(self, data: Data, output: Path) -> dict:
         """Interpret BMP image data received from the oscilloscope.
@@ -264,39 +285,32 @@ class P1255:
         with open(output, 'wb') as f:
             f.write(rest)
 
-    def get_waveform(self) -> tuple[dict, list]:
+    def get_waveform(self) -> Waveform:
         """Get the waveform data from the oscilloscope.
         
         Returns
         -------
-        wf_dict : dict
-            A dictionary containing the interpreted waveform data.
-        ch_out : list
-            A list of dictionaries containing the interpreted channel data.
+        Waveform
+            The interpreted waveform data.
         """
         self.send_scpi_command(cm.GET_WAVEFORM)
         data = self.receive_data()
-        wf_dict, channels = self.interpret_waveform(data)
-        ch_out = []
-        for ch in channels:
-            ch_out.append(self.interpret_channel(ch))
-        return wf_dict, ch_out
+        wf = Waveform(data)
+        return wf
+        
     
-    def get_deep_waveform(self) -> dict:
-        """Get the waveform data from the oscilloscope.
+    def get_deep_waveform(self) -> Waveform:
+        """Get the deep waveform data from the oscilloscope.
         
         Returns
         -------
-        dict
-            A dictionary containing the interpreted waveform data.
+        Waveform
+            The interpreted deep waveform data.
         """
         self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
         data = self.receive_data()
-        wf_dict, channels = self.interpret_waveform(data)
-        ch_out = []
-        for ch in channels:
-            ch_out.append(self.interpret_channel(ch))
-        return wf_dict, ch_out
+        wf = Waveform(data, deep=True)
+        return wf
     
     
     def get_bmp(self, output: Path) -> None:
