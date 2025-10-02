@@ -196,7 +196,7 @@ class MainWindow(QWidget):
     def start_updating(self):
         self.timer = QTimer()
         self.timer.timeout.connect(self.capture_single)
-        self.timer.start(2000)  # milliseconds
+        self.timer.start(500)  # milliseconds
 
     def stop_updating(self):
         if self.timer:
@@ -206,8 +206,11 @@ class MainWindow(QWidget):
 
     def capture_single(self):
         try:
-            self.current_wf = self.p1255.get_waveform()
-            self.update_current()
+            if not self.p1255.waiting_for_response:
+                self.current_wf = self.p1255.get_waveform()
+                self.update_current()
+            else:
+                print("Still waiting for previous response, skipping this capture.")
         except ConnectionError:
             QMessageBox.critical(self, "Connection Error", "Connection lost.")
             self.toggle_run(False)
@@ -223,15 +226,15 @@ class MainWindow(QWidget):
             return
 
         filename = QFileDialog.getSaveFileName(
-            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;JSON Files (*.json);;Numpy Files (*.npz)"
+            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;YAML Files (*.yaml)"
         )[0]
         if not filename:
             return
 
         ext = Path(filename).suffix.lower()
         fmt = ext.lstrip('.')
-        if fmt in ('csv', 'json'):
-            self.current_wf.save(filename, fmt=fmt)
+        if fmt in ('csv', 'yaml'):
+            self.current_wf.save(Path(filename), fmt=fmt)
         else:
             QMessageBox.critical(self, "Save Error", f"Unsupported file format: {ext}")
             return

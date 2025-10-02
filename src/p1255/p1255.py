@@ -149,6 +149,7 @@ class Waveform:
 class P1255:
     def __init__(self):
         self.sock = None
+        self.waiting_for_response = False
         
     def connect(self, ip: str, port: int = 3000, timeout = 5) -> None:
         """Establish a TCP connection to the oscilloscope.
@@ -175,6 +176,7 @@ class P1255:
         """Close the TCP connection to the oscilloscope."""
         if self.sock:
             self.sock.close()
+            self.waiting_for_response = False
             self.sock = None
             
     def send_command(self, command: str) -> None:
@@ -185,6 +187,8 @@ class P1255:
         command : str
             The command to send (as a hex string).
         """
+        if self.waiting_for_response:
+            raise RuntimeError("Cannot send command while waiting for response.")
         if not self.sock:
             hexdump.hexdump(bytes.fromhex(command))
             print("Not connected, command not sent.")
@@ -221,6 +225,7 @@ class P1255:
         """
         if not self.sock:
             raise ConnectionError("Not connected to the oscilloscope.")
+        self.waiting_for_response = True
         response = ""
         try:
             while True:
@@ -233,6 +238,7 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
+        self.waiting_for_response = False
         return response
 
     def receive_data(self) -> Data:
@@ -245,6 +251,7 @@ class P1255:
         """
         if not self.sock:
             raise ConnectionError("Not connected to the oscilloscope.")
+        self.waiting_for_response = True
         received = 0
         length_buffer = bytearray(4)
         try:
@@ -254,7 +261,8 @@ class P1255:
             self.disconnect()
             raise e
         length = struct.unpack("<I", length_buffer)[0] + 8 # Wtf are these 8
-        print(f"Expecting {length} bytes of data.")
+        if VERBOSE:
+            print(f"Expecting {length} bytes of data.")
         
         received = 0
         data_buffer = bytearray(length)
@@ -267,6 +275,7 @@ class P1255:
             self.disconnect()
             raise e
         data = Data(bytes(data_buffer))
+        self.waiting_for_response = False
         return data
 
     
