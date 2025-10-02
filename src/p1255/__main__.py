@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from p1255.constants import CONNECTION_HELP
+from p1255.command_mappings import CONNECTION_HELP
 import argparse
 
 
@@ -42,6 +42,6 @@ def cli():
 
     scope = p1255.P1255()
     scope.connect(args.address, args.port)
-    dataset = scope.capture()
+    dataset = scope.get_waveform()
     dataset.save(args.output, args.format)
     del scope
