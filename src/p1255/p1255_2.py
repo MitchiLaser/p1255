@@ -41,8 +41,10 @@ class Data:
     
     def __len__(self) -> int:
         return len(self.data)
-    
-        
+
+    def copy(self) -> "Data":
+        return Data(self.data)
+
 
 
 class P1255:
@@ -152,7 +154,7 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
-        length = struct.unpack("<I", length_buffer)[0]
+        length = struct.unpack("<I", length_buffer)[0] + 8 # Wtf are these 8
         print(f"Expecting {length} bytes of data.")
         
         received = 0
@@ -200,7 +202,7 @@ class P1255:
             'SN': data.pop(12).decode('ascii'),
             '?3': data.pop(19),
             'n_channels': data.pop(1)[0].bit_count(),
-            '?4': data.pop(14),
+            '?4': data.pop(12),
         }
         
         # split the rest of the data into channels
@@ -277,6 +279,23 @@ class P1255:
         for ch in channels:
             ch_out.append(self.interpret_channel(ch))
         return wf_dict, ch_out
+    
+    def get_deep_waveform(self) -> dict:
+        """Get the waveform data from the oscilloscope.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the interpreted waveform data.
+        """
+        self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
+        data = self.receive_data()
+        wf_dict, channels = self.interpret_waveform(data)
+        ch_out = []
+        for ch in channels:
+            ch_out.append(self.interpret_channel(ch))
+        return wf_dict, ch_out
+    
     
     def get_bmp(self, output: Path) -> None:
         """Get a BMP screenshot from the oscilloscope and save it to a file.
