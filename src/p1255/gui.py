@@ -209,8 +209,6 @@ class MainWindow(QWidget):
             if not self.p1255.waiting_for_response:
                 self.current_wf = self.p1255.get_waveform()
                 self.update_current()
-            else:
-                print("Still waiting for previous response, skipping this capture.")
         except ConnectionError:
             QMessageBox.critical(self, "Connection Error", "Connection lost.")
             self.toggle_run(False)

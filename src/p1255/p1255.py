@@ -28,6 +28,7 @@ SCPI_RESPONSES = [
 
 
 class Data:
+    """A simple class to handle binary data."""
     def __init__(self, data: bytes):
         self.data = data
         
@@ -49,7 +50,9 @@ class Data:
     
     
 class Waveform:
+    """Waveform data structure."""
     class Channel:
+        """Channel data structure."""
         def __init__(self, data: Data, deep: bool = False):
             self.data = data
             self.deep = deep
@@ -59,6 +62,21 @@ class Waveform:
             self.calculate_data()
             
         def interpret_header(self):
+            """Interpret the channel header.
+            
+            Header structure (in bytes):
+            3: Name (ASCII)
+            24: Unknown
+            1: timescale_index
+            3: Unknown
+            4: offset_subdiv (int32)
+            1: voltscale_index
+            3: Unknown
+            8: Unknown (something with the trigger?)
+            4: frequency (float32)
+            8: Unknown
+            rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
+            """
             self.name = self.data.pop(3).decode('ascii')
             self.unknown_1 = self.data.pop(24)
             self.total_time_s = cm.calc_timescale(self.data.pop(1)[0])
@@ -85,6 +103,17 @@ class Waveform:
         self.add_important_info()
         
     def interpret_header(self):
+        """Interpret the waveform header.
+        
+        Header structure (in bytes):
+        8: Unknown
+        10: Unknown
+        12: Serial Number (ASCII)
+        19: Unknown
+        1: n_channels (bit count)
+        12: Unknown
+        rest: channel data
+        """
         self.unknown_1 = self.data.pop(8)
         self.unknown_2 = self.data.pop(10)
         self.serial_number = self.data.pop(12).decode('ascii')
@@ -93,6 +122,7 @@ class Waveform:
         self.unknown_4 = self.data.pop(12)
         
     def split_channels(self):
+        """Split the remaining data into channels."""
         if self.n_channels is None:
             raise ValueError("Header must be interpreted before splitting channels.")
         self.channels = []
@@ -104,12 +134,22 @@ class Waveform:
             self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), deep=self.deep))
             
     def add_important_info(self):
+        """Add important info from the Channels."""
         self.data_screen = {ch.name: ch.data_screen for ch in self.channels}
         self.data_volt = {ch.name: ch.data_volt for ch in self.channels}
         self.time = np.linspace(start=(-1) * self.channels[0].total_time_s / 2, stop=self.channels[0].total_time_s / 2, num=len(self.channels[0].data_raw), endpoint=True)
         
         
     def save(self, path: Path, fmt='csv') -> None:
+        """Save the waveform data to a file.
+        
+        Parameters
+        ----------
+        path : Path
+            The path to save the file to (without extension).
+        fmt : str
+            The format to save the file in. One of 'csv' or 'yaml'.
+        """
         if fmt == 'csv':
             df = pd.DataFrame({'Time': self.time, **self.data_volt})
             df.to_csv(path.with_name(f"{path.stem}.csv"), index=False)
