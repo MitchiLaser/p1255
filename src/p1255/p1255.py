@@ -50,9 +50,65 @@ class Data:
     
     
 class Waveform:
-    """Waveform data structure."""
+    """Waveform data structure.
+    
+    Attributes
+    ----------
+    unknown_1 : bytes
+        Unknown data from the header.
+    unknown_2 : bytes
+        Unknown data from the header.
+    serial_number : str
+        The serial number of the oscilloscope.
+    unknown_3 : bytes
+        Unknown data from the header.
+    n_channels : int
+        The number of channels in the waveform.
+    unknown_4 : bytes
+        Unknown data from the header.
+    channels : list of Channel
+        The channels in the waveform.
+    data_screen : dict
+        The screen data for each channel (in divisions).
+    data_volt : dict
+        The voltage data for each channel (in Volts).
+    time : np.ndarray
+        The time data (in seconds).
+    """
     class Channel:
-        """Channel data structure."""
+        """Channel data structure.
+        
+        Attributes
+        ----------
+        name : str
+            The name of the channel (e.g. "CH1").
+        unknown_1 : bytes
+            Unknown data from the channel header.
+        total_time_s : float
+            The total time of the waveform in seconds.
+        unknown_2 : bytes
+            Unknown data from the channel header.
+        offset_subdiv : int
+            The offset in subdivisions.
+        voltscale_index : int
+            The index of the voltscale.
+        unknown_3 : bytes
+            Unknown data from the channel header.
+        unknown_4 : bytes
+            Unknown data from the channel header (something with the trigger?).
+        frequency : float
+            The frequency of the waveform in Hz.
+        unknown_5 : bytes
+            Unknown data from the channel header.
+        sample_time_ns : float
+            The sample time in nanoseconds.
+        data_raw : np.ndarray
+            The raw data transmitted by the oscilloscope.
+        data_screen : np.ndarray
+            The screen data (in divisions).
+        data_volt : np.ndarray
+            The voltage data (in Volts).
+        """
         def __init__(self, data: Data, deep: bool = False):
             self.data = data
             self.deep = deep
@@ -84,9 +140,9 @@ class Waveform:
             self.offset_subdiv = struct.unpack("<i", self.data.pop(4))[0]
             self.voltscale_index = self.data.pop(1)[0]
             self.unknown_3 = self.data.pop(3)
-            self.unknown_4 = self.data.pop(8).hex() #something with the trigger?
+            self.unknown_4 = self.data.pop(8) #something with the trigger?
             self.frequency = struct.unpack("<f", self.data.pop(4))[0]
-            self.unknown_5 = self.data.pop(8).hex()
+            self.unknown_5 = self.data.pop(8)
             
             self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data)))) # value in 1/25
             self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
