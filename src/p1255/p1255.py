@@ -87,23 +87,31 @@ class Waveform:
             The name of the channel (e.g. "CH1").
         unknown_1 : bytes
             Unknown data from the channel header.
+        unknown_2 : int
+            Unknown data from the channel header. Might be pre trigger samples
+        unknown_3 : int
+            Unknown data from the channel header. Might be post trigger samples
+        unknown_4 : int
+            Unknown data from the channel header. Might be total samples of ch1
+        unknown_5 : int
+            Unknown data from the channel header. Might be total samples of ch2
         total_time_s : float
             The total time of the waveform in seconds.
-        unknown_2 : bytes
+        unknown_6 : bytes
             Unknown data from the channel header.
         offset_subdiv : int
             The offset in subdivisions.
         voltscale_index : int
             The index of the voltscale.
-        unknown_3 : bytes
+        unknown_7 : bytes
             Unknown data from the channel header.
-        unknown_4 : bytes
+        unknown_8 : bytes
             Unknown data from the channel header (something with the trigger?).
         frequency : float
             The frequency of the waveform in Hz.
-        unknown_5 : float
+        unknown_9 : float
             Unknown data from the channel header. Might be another frequency?
-        unknown_6 : float
+        unknown_10 : float
             Unknown data from the channel header.
         sample_time_ns : float
             The sample time in nanoseconds.
@@ -127,7 +135,11 @@ class Waveform:
             
             Header structure (in bytes):
             3: Name (ASCII)
-            24: Unknown
+            8: Unknown
+            4: Unknown (int32) - might be pre trigger samples
+            4: Unknown (int32) - might be post trigger samples
+            4: Unknown (int32) - might be total samples of ch1
+            4: Unknown (int32) - might be total samples of ch2
             1: timescale_index
             3: Unknown
             4: offset_subdiv (int32)
@@ -140,16 +152,20 @@ class Waveform:
             rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
             """
             self.name = self.data.pop(3).decode('ascii')
-            self.unknown_1 = self.data.pop(24)
+            self.unknown_1 = self.data.pop(8)
+            self.unknown_2 = struct.unpack('<i', self.data.pop(4))[0]
+            self.unknown_3 = struct.unpack('<i', self.data.pop(4))[0]
+            self.unknown_4 = struct.unpack('<i', self.data.pop(4))[0]
+            self.unknown_5 = struct.unpack('<i', self.data.pop(4))[0]
             self.total_time_s = cm.calc_timescale(self.data.pop(1)[0])
-            self.unknown_2 = self.data.pop(3) # im guessing these 3
+            self.unknown_6 = self.data.pop(3) # im guessing these 3 belong to the above timescale
             self.offset_subdiv = struct.unpack("<i", self.data.pop(4))[0]
             self.voltscale_index = self.data.pop(1)[0]
-            self.unknown_3 = self.data.pop(3)
-            self.unknown_4 = self.data.pop(8) #something with the trigger?
+            self.unknown_7 = self.data.pop(3) # im guessing these 3 belong to the above voltscale
+            self.unknown_8 = self.data.pop(8) #something with the trigger?
             self.frequency = struct.unpack("<f", self.data.pop(4))[0]
-            self.unknown_5 = struct.unpack('<f', self.data.pop(4))[0]
-            self.unknown_6 = struct.unpack('<f', self.data.pop(4))[0]
+            self.unknown_9 = struct.unpack('<f', self.data.pop(4))[0]
+            self.unknown_10 = struct.unpack('<f', self.data.pop(4))[0]
             
             self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
             
@@ -233,14 +249,19 @@ class Waveform:
                 'Channels': {
                     ch.name: {
                         '?1': ch.unknown_1.hex(),
+                        '?2': ch.unknown_2,
+                        '?3': ch.unknown_3,
+                        '?4': ch.unknown_4,
+                        '?5': ch.unknown_5,
                         'Total Time (s)': ch.total_time_s,
-                        '?2': ch.unknown_2.hex(),
+                        '?6': ch.unknown_6.hex(),
                         'Offset (subdiv)': ch.offset_subdiv,
                         'Voltscale Index': ch.voltscale_index,
-                        '?3': ch.unknown_3.hex(),
-                        '?4': ch.unknown_4,
+                        '?7': ch.unknown_7.hex(),
+                        '?8': ch.unknown_8.hex(),
                         'Frequency (Hz)': ch.frequency,
-                        '?5': ch.unknown_5,
+                        '?9': ch.unknown_9,
+                        '?10': ch.unknown_10,
                         'Sample Time (ns)': ch.sample_time_ns,
                         'Data Screen (subdiv)': ch.data_screen.tolist(),
                         'Data Volt (V)': ch.data_volt.tolist(),
@@ -276,17 +297,22 @@ class Waveform:
             print(f"Name: {ch.name}")
             print("Unknown 1:")
             small_hexdump(ch.unknown_1)
+            print(f"Unknown 2: {ch.unknown_2}")
+            print(f"Unknown 3: {ch.unknown_3}")
+            print(f"Unknown 4: {ch.unknown_4}")
+            print(f"Unknown 5: {ch.unknown_5}")
             print(f"Total Time: {ch.total_time_s} s")
-            print("Unknown 2:")
-            small_hexdump(ch.unknown_2)
+            print("Unknown 6:")
+            small_hexdump(ch.unknown_6)
             print(f"Offset: {ch.offset_subdiv} subdivisions")
             print(f"Voltscale Index: {ch.voltscale_index} ({ch.voltscale} V/Div)")
-            print("Unknown 3:")
-            small_hexdump(ch.unknown_3)
-            print("Unknown 4:")
-            small_hexdump(ch.unknown_4)
+            print("Unknown 7:")
+            small_hexdump(ch.unknown_7)
+            print("Unknown 8:")
+            small_hexdump(ch.unknown_8)
             print(f"Frequency: {ch.frequency} Hz")
-            print(f"Unknown 5: {ch.unknown_5}")
+            print(f"Unknown 9: {ch.unknown_9}")
+            print(f"Unknown 10: {ch.unknown_10}")
             print(f"Data Points: {len(ch.data_raw)}")
             print()
         
