@@ -251,19 +251,60 @@ class Waveform:
                 yaml.dump(all, f)
         else:
             raise ValueError("Format must be 'csv' or 'yaml'.")
+        
+    def debug(self) -> None:
+        """Print all available info gathered from the waveform."""
+        def small_hexdump(data: bytes) -> None:
+            print(data.hex(sep=" ", bytes_per_sep=1))
+            print(data.decode('ascii', errors='replace'))
+        print("Waveform Info")
+        print("-------------")
+        print("Unknown 1:")
+        small_hexdump(self.unknown_1)
+        print("Unknown 2:")
+        small_hexdump(self.unknown_2)
+        print(f"Serial Number: {self.serial_number}")
+        print("Unknown 3:")
+        small_hexdump(self.unknown_3)
+        print(f"Number of Channels: {self.n_channels}")
+        print("Unknown 4:")
+        small_hexdump(self.unknown_4)
+        print()
+        for i, ch in enumerate(self.channels):
+            print(f"Channel {i+1} Info")
+            print("----------------")
+            print(f"Name: {ch.name}")
+            print("Unknown 1:")
+            small_hexdump(ch.unknown_1)
+            print(f"Total Time: {ch.total_time_s} s")
+            print("Unknown 2:")
+            small_hexdump(ch.unknown_2)
+            print(f"Offset: {ch.offset_subdiv} subdivisions")
+            print(f"Voltscale Index: {ch.voltscale_index} ({ch.voltscale} V/Div)")
+            print("Unknown 3:")
+            small_hexdump(ch.unknown_3)
+            print("Unknown 4:")
+            small_hexdump(ch.unknown_4)
+            print(f"Frequency: {ch.frequency} Hz")
+            print(f"Unknown 5: {ch.unknown_5}")
+            print(f"Data Points: {len(ch.data_raw)}")
+            print()
+        
 
     def plot(self) -> None:
         """Plot the waveform data."""
         with plt.style.context('dark_background'):
-            plt.figure()
+            fig, ax = plt.subplots()
             x = np.linspace(-7.6, 7.6, len(self.time))
             for ch in self.channels:
-                plt.plot(x, ch.data_screen, label=f"{ch.name} {ch.voltscale}V/Div", color=cm.COLORS[ch.name])
+                ax.plot(x,
+                        ch.data_screen, 
+                        label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz",
+                        color=cm.COLORS[ch.name]
+                        )
 
-            plt.ylim(-5, 5)
-            plt.xlim(-7.6, 7.6)
-
-            ax = plt.gca()
+            ax.set_ylim(-5, 5)
+            ax.set_xlim(-7.6, 7.6)
             ax.xaxis.set_major_locator(MultipleLocator(1))
             ax.yaxis.set_major_locator(MultipleLocator(1))
             ax.set_aspect('equal', adjustable='box') 
@@ -273,14 +314,27 @@ class Waveform:
                 labelbottom=False,
                 labelleft=False,
             )
+            ax.legend(
+                loc='upper left',
+                bbox_to_anchor=(0, -0.01),
+                frameon=True
+            )
+            for text in ax.legend_.get_texts():
+                text.set_fontfamily('monospace')
 
-            plt.title(f"Waveform from {self.serial_number}")
-            plt.legend()
-            plt.grid(which='both', linestyle=':', linewidth=0.5, alpha=0.5)
-            plt.axhline(0, color='white', linewidth=.5, linestyle=':')
-            plt.axvline(0, color='white', linewidth=.5, linestyle=':')
+            ax.set_title(
+f"""Waveform from {self.serial_number}
+Total Time: {self.channels[0].total_time_s*1e3:.2f} ms
+Samples: {len(self.time)}""",
+pad=20,
+loc='left'
+)
+            ax.grid(which='both', linestyle=':', linewidth=0.5, alpha=0.5)
+            ax.axhline(0, color='white', linewidth=.5, linestyle=':')
+            ax.axvline(0, color='white', linewidth=.5, linestyle=':')
+            
+            plt.tight_layout()
             plt.show()
-
 
 
         
