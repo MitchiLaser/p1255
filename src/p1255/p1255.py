@@ -34,9 +34,11 @@ class Data:
         self.data = data
         
     def dump(self) -> None:
+        """Dump the data in a human-readable format."""
         hexdump.hexdump(self.data)
         
     def pop(self, length: int) -> bytes:
+        """Pop `length` bytes from the start of the data."""
         if len(self.data) < length:
             raise ValueError("Not enough data to pop.")
         chunk = self.data[:length]
@@ -99,10 +101,14 @@ class Waveform:
             Unknown data from the channel header (something with the trigger?).
         frequency : float
             The frequency of the waveform in Hz.
-        unknown_5 : bytes
+        unknown_5 : float
+            Unknown data from the channel header. Might be another frequency?
+        unknown_6 : float
             Unknown data from the channel header.
         sample_time_ns : float
             The sample time in nanoseconds.
+        voltscale : float
+            The voltscale in Volts/Div.
         data_raw : np.ndarray
             The raw data transmitted by the oscilloscope.
         data_screen : np.ndarray
@@ -151,6 +157,7 @@ class Waveform:
             self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index] # in Volts/Div
         
         def calculate_data(self):
+            """Calculate the screen and voltage data from the raw data."""
             if self.deep:
                 self.data_screen = cm.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = cm.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
@@ -344,9 +351,13 @@ class P1255:
         self.send_command(command.encode('ascii').hex())
         
     def send_modify_command(self, command: str) -> None:
+        """Send a modify command to the oscilloscope.
+        
+        For that purpose the command is prefixed with ":M", followed by the length of the command in bytes (as a little-endian 4-byte integer).
+        """
         length = len(command) // 2
-        length_str = struct.pack("<I", length).hex()
-        full_command = hexstr("M:") + length_str + command
+        length_str = struct.pack(">I", length).hex()
+        full_command = hexstr(":M") + length_str + command
         self.send_command(full_command)
         
     def receive_scpi_response(self) -> str:
@@ -361,13 +372,19 @@ class P1255:
             raise ConnectionError("Not connected to the oscilloscope.")
         self.waiting_for_response = True
         response = ""
+        response_hex_str = ""
+        
         try:
             while True:
-                response += self.sock.recv(1).decode('ascii')
+                b = self.sock.recv(1)
+                response += b.decode('ascii')
+                response_hex_str += b.hex()
                 if response in SCPI_RESPONSES:
                     break
         except TimeoutError:
             print(response)
+            print(response_hex_str)
+            self.waiting_for_response = False
             raise TimeoutError("Timeout while waiting for SCPI response.")
         except OSError as e:
             self.disconnect()
@@ -477,6 +494,10 @@ class P1255:
         ):
         """Set the IP configuration of the oscilloscope.
         
+        Sniffed Hexstr
+        --------------
+        3a4d000000134d4e54ac17a74700000bb8c0a80101ffffff00
+        
         Parameters
         ----------
         ip : str
@@ -488,7 +509,7 @@ class P1255:
         gateway : str
             The gateway address to set.
         """
-        cmd = cm.network(ip, port, gateway, subnet)
+        cmd = hexstr("MNT") + cm.network(ip, port, gateway, subnet)
         self.send_modify_command(cmd)
         
     def set_trigger_configuration(
@@ -501,6 +522,11 @@ class P1255:
         type = "SINGLE",
         ):
         """Set the trigger configuration of the oscilloscope.
+        
+        Sniffed Hexstr
+        --------------
+        3a4d0000002e4d545273006502004d545273006503004d545273006504000000014d545273006505004d54527300650600000000
+        
         
         Parameters
         ----------
@@ -534,6 +560,7 @@ class P1255:
             hexstr("MTR")
             + cm.TRIGGER_TYPE[type]
             + cm.CHANNEL[channel]
+            + hexstr("e")
             )
         cmd = (
             repeating
@@ -563,6 +590,10 @@ class P1255:
         voltbase_V: float = 1.0,
     ):
         """Set the channel configuration of the oscilloscope.
+        
+        Sniffed Hexstr
+        --------------
+        3a4d000000064d434800700063007600 # this might be wrong or for turning channel on/off or something
         
         Parameters
         ----------
