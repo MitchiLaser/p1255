@@ -113,8 +113,6 @@ class Waveform:
         def __init__(self, data: Data, deep: bool = False):
             self.data = data
             self.deep = deep
-            if self.deep:
-                raise NotImplementedError("Deep waveform not implemented yet.")
             self.interpret_header()
             self.calculate_data()
             
@@ -131,7 +129,8 @@ class Waveform:
             3: Unknown
             8: Unknown (something with the trigger?)
             4: frequency (float32)
-            8: Unknown
+            4: Unknown (float32) - not sure that this is float32, might be again frequency? (Maybe one is trigger frequency?)
+            4: Unknown (float32) - not sure that this is float32
             rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
             """
             self.name = self.data.pop(3).decode('ascii')
@@ -143,15 +142,22 @@ class Waveform:
             self.unknown_3 = self.data.pop(3)
             self.unknown_4 = self.data.pop(8) #something with the trigger?
             self.frequency = struct.unpack("<f", self.data.pop(4))[0]
-            self.unknown_5 = self.data.pop(8)
+            self.unknown_5 = struct.unpack('<f', self.data.pop(4))[0]
+            self.unknown_6 = struct.unpack('<f', self.data.pop(4))[0]
             
-            self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data)))) # value in 1/25
+            self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
+            
             self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
+            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index] # in Volts/Div
         
         def calculate_data(self):
-            self.data_screen = (self.data_raw + self.offset_subdiv) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
-            self.data_volt = (self.data_raw / 25) * list(cm.VOLTBASE.keys())[self.voltscale_index]
-            
+            if self.deep:
+                self.data_screen = cm.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_volt = cm.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+            else:
+                self.data_screen = cm.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_volt = cm.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+
     def __init__(self, data: Data, deep: bool = False):
         self.data = data
         self.deep = deep

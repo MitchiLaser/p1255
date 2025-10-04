@@ -14,7 +14,7 @@ TRIGGER_TYPE = {'SINGLE': 's'.encode('ASCII').hex(),
                 'ALTERNATE': 'a'.encode('ASCII').hex()}
 PROBERATE = {1: "00", 10: "01", 100: "02", 1000: "03"}
 CHANNEL_COUPLING = {'DC': "00", 'AC': "01", 'GND': "02"}
-VOLTBASE = {
+VOLTBASE = { # in V/div
           .002: "00",
           .005: "01",
           .010: "02",
@@ -100,6 +100,19 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
     port = port.to_bytes(4, byteorder='big').hex()
 
     return ip + port + mask + gateway
+
+
+def normal_to_screen(ch, scale, off):
+    return (ch + off) / 25
+
+def normal_to_volt(ch, scale, off):
+    return ch * scale / 25 # I would say this is correct
+
+def deep_to_volt(ch, scale, off):
+    return scale * (ch /2**8 - off) / 25
+
+def deep_to_screen(ch, scale, off):
+    return (ch / 2**8) / 25
 
 
 
