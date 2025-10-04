@@ -256,12 +256,12 @@ class Waveform:
         """Plot the waveform data."""
         with plt.style.context('dark_background'):
             plt.figure()
-            x = np.linspace(-7.5, 7.5, len(self.time))
+            x = np.linspace(-7.6, 7.6, len(self.time))
             for ch in self.channels:
                 plt.plot(x, ch.data_screen, label=f"{ch.name} {ch.voltscale}V/Div", color=cm.COLORS[ch.name])
 
             plt.ylim(-5, 5)
-            plt.xlim(-7.5, 7.5)
+            plt.xlim(-7.6, 7.6)
 
             ax = plt.gca()
             ax.xaxis.set_major_locator(MultipleLocator(1))
@@ -276,7 +276,9 @@ class Waveform:
 
             plt.title(f"Waveform from {self.serial_number}")
             plt.legend()
-            plt.grid(which='both', linestyle='--', linewidth=0.5)
+            plt.grid(which='both', linestyle=':', linewidth=0.5, alpha=0.5)
+            plt.axhline(0, color='white', linewidth=.5, linestyle=':')
+            plt.axvline(0, color='white', linewidth=.5, linestyle=':')
             plt.show()
 
 
