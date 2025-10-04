@@ -1,8 +1,8 @@
 import socket
 import struct
-import ipaddress
 import hexdump
-from p1255 import command_mappings as cm
+from . import command_mappings as cm
+from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
@@ -244,29 +244,35 @@ class Waveform:
                 yaml.dump(all, f)
         else:
             raise ValueError("Format must be 'csv' or 'yaml'.")
-        
-    def plot(self, volts = True) -> None:
-        """Plot the waveform data.
-        
-        Parameters
-        ----------
-        volts : bool
-            If True, plot the voltage data. If False, plot the screen data.
-        """
-        plt.figure()
-        for ch in self.channels:
-            if volts:
-                plt.plot(self.time * 1e3, ch.data_volt, label=ch.name, color=cm.COLORS[ch.name]) # time in ms
-                plt.ylabel("Voltage (V)")
-            else:
-                plt.plot(self.time * 1e3, ch.data_screen, label=ch.name, color=cm.COLORS[ch.name]) # time in ms
-                plt.ylabel("Divisions")
-                plt.ylim(-5,5)
-        plt.xlabel("Time (ms)")
-        plt.title(f"Waveform from {self.serial_number}")
-        plt.legend()
-        plt.grid()
-        plt.show()
+
+    def plot(self) -> None:
+        """Plot the waveform data."""
+        with plt.style.context('dark_background'):
+            plt.figure()
+            x = np.linspace(-7.5, 7.5, len(self.time))
+            for ch in self.channels:
+                plt.plot(x, ch.data_screen, label=f"{ch.name} {ch.voltscale}V/Div", color=cm.COLORS[ch.name])
+
+            plt.ylim(-5, 5)
+            plt.xlim(-7.5, 7.5)
+
+            ax = plt.gca()
+            ax.xaxis.set_major_locator(MultipleLocator(1))
+            ax.yaxis.set_major_locator(MultipleLocator(1))
+            ax.set_aspect('equal', adjustable='box') 
+            ax.tick_params(
+                bottom=False,
+                left=False,
+                labelbottom=False,
+                labelleft=False,
+            )
+
+            plt.title(f"Waveform from {self.serial_number}")
+            plt.legend()
+            plt.grid(which='both', linestyle='--', linewidth=0.5)
+            plt.show()
+
+
 
         
 
