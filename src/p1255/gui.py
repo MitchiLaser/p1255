@@ -12,7 +12,7 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import os
 from p1255.p1255 import P1255, Waveform
-from p1255.command_mappings import CONNECTION_HELP
+from p1255.command_mappings import CONNECTION_HELP, COLORS
 import ipaddress
 from pathlib import Path
 import yaml
@@ -23,10 +23,6 @@ import numpy as np
 plt.style.use('dark_background')
 
 ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
-COLORS = {
-    "CH1": 'red',
-    "CH2": 'yellow',
-}
 
 
 class PlotWidget(FigureCanvas):

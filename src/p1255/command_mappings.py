@@ -28,6 +28,10 @@ VOLTBASE = {
          5.   : "0A",
         10.   : "0B"
         }
+COLORS = {
+    "CH1": 'red',
+    "CH2": 'yellow',
+}
 
 def calc_timescale(number):
     exp = math.floor(number / 3)
