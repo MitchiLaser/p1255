@@ -279,10 +279,12 @@ class Waveform:
 
 
 class P1255:
-    def __init__(self):
+    def __init__(self, ip: str = None, port: int = 3000, timeout: int = 5):
         self.sock = None
         self.waiting_for_response = False
-        
+        if ip is not None:
+            self.connect(ip, port, timeout)
+
     def connect(self, ip: str, port: int = 3000, timeout = 5) -> None:
         """Establish a TCP connection to the oscilloscope.
         
