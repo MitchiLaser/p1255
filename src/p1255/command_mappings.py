@@ -33,6 +33,9 @@ COLORS = {
     "CH2": 'yellow',
 }
 
+MEMDEPTH = ["1K", "10K", "100K", "1M", "10M"]
+VALID_MEMDEPTH = ["10K", "1M", "10M"]  # only these seem to work
+
 def calc_timescale(number):
     exp = math.floor(number / 3)
     mant = {0: 1, 1: 2, 2: 5}[number % 3]
@@ -127,3 +130,11 @@ CONNECTION_HELP = """P1255 Connection Help:
     - You can use the "F*" buttons and the "M" knob to adjust other settings.
     - Save the changes and restart to apply them.
         """
+        
+        
+        
+SCPI_COMMANDS = [ # replace ? with space and corresponding SCPI_RESPONSES
+    ":ACQuire:AVERage?",
+    ":ACQuire:MDEPth?",
+    ":ACQuire:TYPE?",
+]

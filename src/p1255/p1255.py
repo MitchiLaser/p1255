@@ -124,9 +124,9 @@ class Waveform:
         data_volt : np.ndarray
             The voltage data (in Volts).
         """
-        def __init__(self, data: Data, deep: bool = False):
+        def __init__(self, data: Data, memdepth: str = None):
             self.data = data
-            self.deep = deep
+            self.memdepth = memdepth
             self.interpret_header()
             self.calculate_data()
             
@@ -174,16 +174,16 @@ class Waveform:
         
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
-            if self.deep:
+            if self.memdepth is not None:
                 self.data_screen = cm.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = cm.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
             else:
                 self.data_screen = cm.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = cm.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
 
-    def __init__(self, data: Data, deep: bool = False):
+    def __init__(self, data: Data, memdepth: str = None):
         self.data = data
-        self.deep = deep
+        self.memdepth = memdepth
         self.interpret_header()
         self.split_channels()
         self.add_important_info()
@@ -217,7 +217,7 @@ class Waveform:
         len_per_channel = len(self.data) // self.n_channels
         for i in range(self.n_channels):
             # assume all channels are the same length
-            self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), deep=self.deep))
+            self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), memdepth=self.memdepth))
             
     def add_important_info(self):
         """Add important info from the Channels."""
@@ -246,6 +246,7 @@ class Waveform:
                 'Serial Number': self.serial_number,
                 '?3': self.unknown_3.hex(),
                 '?4': self.unknown_4.hex(),
+                'memdepth': self.memdepth,
                 'Channels': {
                     ch.name: {
                         '?1': ch.unknown_1.hex(),
@@ -290,6 +291,7 @@ class Waveform:
         print(f"Number of Channels: {self.n_channels}")
         print("Unknown 4:")
         small_hexdump(self.unknown_4)
+        print(f"Memory Depth: {self.memdepth}")
         print()
         for i, ch in enumerate(self.channels):
             print(f"Channel {i+1} Info")
@@ -541,17 +543,26 @@ class P1255:
         return wf
         
     
-    def get_deep_waveform(self) -> Waveform:
+    def get_deep_waveform(self, memdepth = None) -> Waveform:
         """Get the deep waveform data from the oscilloscope.
-        
+
+        Parameters
+        ----------
+        memdepth : str
+            The memory depth to use. One of '1K', '10K', '100K', '1M', '10M'.
+            Although only '10K', '1M' and '10M' seem to work.
+
         Returns
         -------
         Waveform
             The interpreted deep waveform data.
         """
+        if memdepth is not None:
+            self.set_memdepth(memdepth)
+        selected_depth = self.get_memdepth()
         self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
         data = self.receive_data()
-        wf = Waveform(data, deep=True)
+        wf = Waveform(data, deep=selected_depth)
         return wf
     
     
@@ -708,6 +719,35 @@ class P1255:
             + cm.VOLTBASE[voltbase_V]
         )
         self.send_modify_command(cmd)
+        
+    def set_memdepth(self, depth: str):
+        """Set the memory depth of the oscilloscope.
+        
+        Parameters
+        ----------
+        depth : str
+            The memory depth. One of '1K', '10K', '100K', '1M', '10M'
+        """
+        if depth not in cm.MEMDEPTH:
+            raise ValueError(f"Invalid memory depth. Must be one of {list(cm.MEMDEPTH.keys())}.")
+        if depth not in cm.VALID_MEMDEPTH:
+            print(f"Warning: Memory depth {depth} might not work properly. Recommended depths are {cm.VALID_MEMDEPTH}.")
+        
+        self.send_scpi_command(f":ACQuire:MDEPth {depth}")
+        
+    def get_memdepth(self) -> str:
+        """Get the current memory depth of the oscilloscope.
+        
+        Returns
+        -------
+        depth : str
+            The current memory depth.
+        """
+        self.send_scpi_command(":ACQuire:MDEPth?")
+        response = self.receive_scpi_response()
+        if response not in cm.MEMDEPTH:
+            raise ValueError(f"Received invalid memory depth: {response}")
+        return response
         
     
 
