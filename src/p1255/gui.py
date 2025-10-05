@@ -36,10 +36,8 @@ class PlotWidget(FigureCanvas):
 
         Parameters
         ----------
-        wf_dict : dict
-            The waveform dictionary containing channel data.
-        channels : list
-            The list of channels to plot.
+        wf : Waveform
+            The waveform data to plot.
         unit : str
             The unit to plot ('Voltage' or 'Divisions').
         mode : str
