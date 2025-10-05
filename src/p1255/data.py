@@ -15,13 +15,14 @@ import math
 
 class Data:
     """A simple class to handle binary data."""
+
     def __init__(self, data: bytes):
         self.data = data
-        
+
     def dump(self) -> None:
         """Dump the data in a human-readable format."""
         hexdump.hexdump(self.data)
-        
+
     def pop(self, length: int) -> bytes:
         """Pop `length` bytes from the start of the data."""
         if len(self.data) < length:
@@ -29,16 +30,17 @@ class Data:
         chunk = self.data[:length]
         self.data = self.data[length:]
         return chunk
-    
+
     def __len__(self) -> int:
         return len(self.data)
 
     def copy(self) -> "Data":
         return Data(self.data)
 
+
 class Waveform:
     """Waveform data structure.
-    
+
     Attributes
     ----------
     unknown_1 : bytes
@@ -62,17 +64,19 @@ class Waveform:
     time : np.ndarray
         The time data (in seconds).
     """
+
     class Channel:
         """Channel data structure."""
+
         def __init__(self, data: Data, memdepth: str = None):
             self.data = data
             self.memdepth = memdepth
             self.interpret_header()
             self.calculate_data()
-            
+
         def interpret_header(self):
             """Interpret the channel header.
-            
+
             Header structure (in bytes):
             3: Name (ASCII)
             8: Unknown
@@ -108,10 +112,10 @@ class Waveform:
             self.unknown_10: float = struct.unpack('<f', self.data.pop(4))[0]
 
             self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
-            
+
             self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
-            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index] # in Volts/Div
-        
+            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index]  # in Volts/Div
+
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
             if self.memdepth is not None:
@@ -120,14 +124,14 @@ class Waveform:
             else:
                 self.data_screen = self.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = self.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
-                
+
         @staticmethod
         def normal_to_screen(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
             return (ch + off) / 25
 
         @staticmethod
         def normal_to_volt(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
-            return ch * scale / 25 # I would say this is correct
+            return ch * scale / 25  # I would say this is correct
 
         @staticmethod
         def deep_to_volt(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
@@ -136,12 +140,12 @@ class Waveform:
         @staticmethod
         def deep_to_screen(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
             return (ch / 2**8) / 25
-        
+
         @staticmethod
         def calc_timescale(number: int) -> float:
             exp = math.floor(number / 3)
             mant = {0: 1, 1: 2, 2: 5}[number % 3]
-            time_per_div = mant * (10 ** exp)
+            time_per_div = mant * (10**exp)
             return 15 * time_per_div * 1e-9  # times 15 divisions on the screen, convert from nanoseconds to seconds
 
     def __init__(self, data: Data, memdepth: str = None):
@@ -150,10 +154,10 @@ class Waveform:
         self.interpret_header()
         self.split_channels()
         self.add_important_info()
-        
+
     def interpret_header(self):
         """Interpret the waveform header.
-        
+
         Header structure (in bytes):
         8: Unknown
         10: Unknown
@@ -169,7 +173,7 @@ class Waveform:
         self.unknown_3: bytes = self.data.pop(19)
         self.n_channels: int = self.data.pop(1)[0].bit_count()
         self.unknown_4: bytes = self.data.pop(12)
-        
+
     def split_channels(self):
         """Split the remaining data into channels."""
         self.channels = []
@@ -179,17 +183,21 @@ class Waveform:
         for i in range(self.n_channels):
             # assume all channels are the same length
             self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), memdepth=self.memdepth))
-            
+
     def add_important_info(self):
         """Add important info from the Channels."""
         self.data_screen = {ch.name: ch.data_screen for ch in self.channels}
         self.data_volt = {ch.name: ch.data_volt for ch in self.channels}
-        self.time = np.linspace(start=(-1) * self.channels[0].total_time_s / 2, stop=self.channels[0].total_time_s / 2, num=len(self.channels[0].data_raw), endpoint=True)
-        
-        
+        self.time = np.linspace(
+            start=(-1) * self.channels[0].total_time_s / 2,
+            stop=self.channels[0].total_time_s / 2,
+            num=len(self.channels[0].data_raw),
+            endpoint=True,
+        )
+
     def save(self, path: Path, fmt='csv') -> None:
         """Save the waveform data to a file.
-        
+
         Parameters
         ----------
         path : Path
@@ -227,19 +235,22 @@ class Waveform:
                         'Sample Time (ns)': ch.sample_time_ns,
                         'Data Screen (subdiv)': ch.data_screen.tolist(),
                         'Data Volt (V)': ch.data_volt.tolist(),
-                    } for ch in self.channels
-                }
+                    }
+                    for ch in self.channels
+                },
             }
             with open(path.with_name(f"{path.stem}.yaml"), 'w') as f:
                 yaml.dump(all, f)
         else:
             raise ValueError("Format must be 'csv' or 'yaml'.")
-        
+
     def debug(self) -> None:
         """Print all available info gathered from the waveform."""
+
         def small_hexdump(data: bytes) -> None:
             print(data.hex(sep=" ", bytes_per_sep=1))
             print(data.decode('ascii', errors='replace'))
+
         print("Waveform Info")
         print("-------------")
         print("Unknown 1:")
@@ -255,7 +266,7 @@ class Waveform:
         print(f"Memory Depth: {self.memdepth}")
         print()
         for i, ch in enumerate(self.channels):
-            print(f"Channel {i+1} Info")
+            print(f"Channel {i + 1} Info")
             print("----------------")
             print(f"Name: {ch.name}")
             print("Unknown 1:")
@@ -278,7 +289,6 @@ class Waveform:
             print(f"Unknown 10: {ch.unknown_10}")
             print(f"Data Points: {len(ch.data_raw)}")
             print()
-        
 
     def plot(self) -> None:
         """Plot the waveform data."""
@@ -286,60 +296,55 @@ class Waveform:
             fig, ax = plt.subplots()
             x = np.linspace(-7.6, 7.6, len(self.time))
             for ch in self.channels:
-                ax.plot(x,
-                        ch.data_screen, 
-                        label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz",
-                        color=COLORS[ch.name]
-                        )
+                ax.plot(
+                    x,
+                    ch.data_screen,
+                    label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz",
+                    color=COLORS[ch.name],
+                )
 
             ax.set_ylim(-5, 5)
             ax.set_xlim(-7.6, 7.6)
             ax.xaxis.set_major_locator(MultipleLocator(1))
             ax.yaxis.set_major_locator(MultipleLocator(1))
-            ax.set_aspect('equal', adjustable='box') 
+            ax.set_aspect('equal', adjustable='box')
             ax.tick_params(
                 bottom=False,
                 left=False,
                 labelbottom=False,
                 labelleft=False,
             )
-            ax.legend(
-                loc='upper left',
-                bbox_to_anchor=(0, -0.01),
-                frameon=True
-            )
+            ax.legend(loc='upper left', bbox_to_anchor=(0, -0.01), frameon=True)
             for text in ax.legend_.get_texts():
                 text.set_fontfamily('monospace')
 
             ax.set_title(
-f"""Waveform from {self.serial_number}
-Total Time: {self.channels[0].total_time_s*1e3:.2f} ms
+                f"""Waveform from {self.serial_number}
+Total Time: {self.channels[0].total_time_s * 1e3:.2f} ms
 Samples: {len(self.time)}""",
-pad=20,
-loc='left'
-)
+                pad=20,
+                loc='left',
+            )
             ax.grid(which='both', linestyle=':', linewidth=0.5, alpha=0.5)
-            ax.axhline(0, color='white', linewidth=.5, linestyle=':')
-            ax.axvline(0, color='white', linewidth=.5, linestyle=':')
-            
+            ax.axhline(0, color='white', linewidth=0.5, linestyle=':')
+            ax.axvline(0, color='white', linewidth=0.5, linestyle=':')
+
             plt.tight_layout()
             plt.show()
-    
 
-            
-            
+
 class BMP:
     def __init__(self, data: Data):
         self.data = data
         self.interpret_header()
-        
+
     def interpret_header(self):
         self.unknown: bytes = self.data.pop(8)
         self.bmp_data: bytes = self.data.pop(len(self.data))
-        
+
     def save(self, path: Path) -> None:
         """Save the BMP data to a file.
-        
+
         Parameters
         ----------
         path : Path
@@ -347,7 +352,7 @@ class BMP:
         """
         with open(path, 'wb') as f:
             f.write(self.bmp_data)
-        
+
     def plot(self) -> None:
         """Plot the BMP data."""
         with BytesIO(self.bmp_data) as bio:

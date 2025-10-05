@@ -14,7 +14,9 @@ def gui():
         epilog="https://github.com/MitchiLaser/p1255/",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("-c", "--customIP", action="store_true", help="Shows the custom IP selection even when alias file was found.")
+    parser.add_argument(
+        "-c", "--customIP", action="store_true", help="Shows the custom IP selection even when alias file was found."
+    )
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
@@ -34,10 +36,35 @@ def cli():
         epilog="https://github.com/MitchiLaser/p1255/",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("-a", "--address", type=ipaddress.IPv4Address, required=True, help="The IPv4 address of the oscilloscope", )
-    parser.add_argument("-p", "--port", type=int, default=3000, help="The port to connect to, default is 3000", )
-    parser.add_argument("-o", "--output", type=str, required=True, help="Output File where the dataset is saved", )
-    parser.add_argument("-f", "--format", type=str, default="csv", choices=["csv", "json", "npz"], help="Storage file format", )
+    parser.add_argument(
+        "-a",
+        "--address",
+        type=ipaddress.IPv4Address,
+        required=True,
+        help="The IPv4 address of the oscilloscope",
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=3000,
+        help="The port to connect to, default is 3000",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=True,
+        help="Output File where the dataset is saved",
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        type=str,
+        default="csv",
+        choices=["csv", "json", "npz"],
+        help="Storage file format",
+    )
     args = parser.parse_args()
 
     scope = p1255.P1255()

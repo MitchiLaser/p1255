@@ -110,13 +110,3 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
     port = port.to_bytes(4, byteorder='big').hex()
 
     return ip + port + mask + gateway
-
-
-
-
-
-
-
-        
-        
-        

@@ -6,8 +6,6 @@ import hexdump
 from tqdm import tqdm
 
 
-VERBOSE = False
-
 class P1255:
     def __init__(self, ip: str = None, port: int = 3000, timeout: int = 5):
         self.sock = None
@@ -15,9 +13,9 @@ class P1255:
         if ip is not None:
             self.connect(ip, port, timeout)
 
-    def connect(self, ip: str, port: int = 3000, timeout = 5) -> None:
+    def connect(self, ip: str, port: int = 3000, timeout=5) -> None:
         """Establish a TCP connection to the oscilloscope.
-        
+
         Parameters
         ----------
         ip : str
@@ -35,17 +33,17 @@ class P1255:
             self.sock.close()
             self.sock = None
             raise e
-        
+
     def disconnect(self) -> None:
         """Close the TCP connection to the oscilloscope."""
         if self.sock:
             self.sock.close()
             self.waiting_for_response = False
             self.sock = None
-            
+
     def send_command(self, command: str) -> None:
         """Send a command to the oscilloscope.
-        
+
         Parameters
         ----------
         command : str
@@ -62,27 +60,27 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
-        
+
     def send_scpi_command(self, command: str) -> None:
         """Send an SCPI command to the oscilloscope.
-        
+
         Parameters
         ----------
         command : str
             The SCPI command to send.
         """
         self.send_command(command.encode('ascii').hex())
-        
+
     def send_modify_command(self, command: str) -> None:
         """Send a modify command to the oscilloscope.
-        
+
         For that purpose the command is prefixed with ":M", followed by the length of the command in bytes (as a little-endian 4-byte integer).
         """
         length = len(command) // 2
         length_str = struct.pack(">I", length).hex()
         full_command = hexstr(":M") + length_str + command
         self.send_command(full_command)
-        
+
     def receive_scpi_response(self) -> str:
         """Receive an SCPI response from the oscilloscope.
 
@@ -96,7 +94,7 @@ class P1255:
         self.waiting_for_response = True
         response = ""
         response_hex_str = ""
-        
+
         try:
             while True:
                 b = self.sock.recv(1)
@@ -117,7 +115,7 @@ class P1255:
 
     def receive_data(self, show_progress: bool = False) -> Data:
         """Receive data from the oscilloscope.
-        
+
         Returns
         -------
         data
@@ -134,8 +132,8 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
-        length = struct.unpack("<I", length_buffer)[0] + 8 # Wtf are these 8
-        
+        length = struct.unpack("<I", length_buffer)[0] + 8  # Wtf are these 8
+
         received = 0
         data_buffer = bytearray(length)
         progress_bar = tqdm(total=length, unit="B", unit_scale=True, disable=not show_progress)
@@ -151,7 +149,6 @@ class P1255:
         self.waiting_for_response = False
         return data
 
-    
     def get_bmp(self, show_progress: bool = False) -> BMP:
         """Get the BMP screenshot from the oscilloscope.
 
@@ -167,7 +164,7 @@ class P1255:
 
     def get_waveform(self, show_progress: bool = False) -> Waveform:
         """Get the waveform data from the oscilloscope.
-        
+
         Returns
         -------
         Waveform
@@ -178,8 +175,7 @@ class P1255:
         wf = Waveform(data)
         return wf
 
-
-    def get_deep_waveform(self, memdepth = None, show_progress: bool = False) -> Waveform:
+    def get_deep_waveform(self, memdepth=None, show_progress: bool = False) -> Waveform:
         """Get the deep waveform data from the oscilloscope.
 
         Parameters
@@ -201,20 +197,14 @@ class P1255:
         data = self.receive_data(show_progress=show_progress)
         wf = Waveform(data, memdepth=selected_depth)
         return wf
-        
-    def set_ip_configuration(
-        self, 
-        ip = "192.168.1.72", 
-        port = 3000, 
-        subnet = "255.255.255.0", 
-        gateway = "192.168.1.1"
-        ):
+
+    def set_ip_configuration(self, ip="192.168.1.72", port=3000, subnet="255.255.255.0", gateway="192.168.1.1"):
         """Set the IP configuration of the oscilloscope.
-        
+
         Sniffed Hexstr
         --------------
         3a4d000000134d4e54ac17a74700000bb8c0a80101ffffff00
-        
+
         Parameters
         ----------
         ip : str
@@ -229,23 +219,23 @@ class P1255:
         raise NotImplementedError("This function does not work yet.")
         cmd = hexstr("MNT") + cm.network(ip, port, gateway, subnet)
         self.send_modify_command(cmd)
-        
+
     def set_trigger_configuration(
         self,
-        coupling = "DC",
-        mode = "AUTO",
-        slope = "RISING",
-        level = 0,
-        channel = 1,
-        type = "SINGLE",
-        ):
+        coupling="DC",
+        mode="AUTO",
+        slope="RISING",
+        level=0,
+        channel=1,
+        type="SINGLE",
+    ):
         """Set the trigger configuration of the oscilloscope.
-        
+
         Sniffed Hexstr
         --------------
         3a4d0000002e4d545273006502004d545273006503004d545273006504000000014d545273006505004d54527300650600000000
-        
-        
+
+
         Parameters
         ----------
         coupling : str
@@ -274,13 +264,8 @@ class P1255:
             raise ValueError(f"Invalid trigger type. Must be one of {list(cm.TRIGGER_TYPE.keys())}.")
         if not (-7.0 <= level <= 5.0):
             raise ValueError("Invalid trigger level. Must be between -7V and +5V.")
-        
-        repeating = (
-            hexstr("MTR")
-            + cm.TRIGGER_TYPE[type]
-            + cm.CHANNEL[channel]
-            + hexstr("e")
-            )
+
+        repeating = hexstr("MTR") + cm.TRIGGER_TYPE[type] + cm.CHANNEL[channel] + hexstr("e")
         cmd = (
             repeating
             + "02"
@@ -299,8 +284,7 @@ class P1255:
             + cm.trigger_voltage(level)
         )
         self.send_modify_command(cmd)
-        
-        
+
     def set_channel_configuration(
         self,
         channel: int,
@@ -309,11 +293,11 @@ class P1255:
         voltbase_V: float = 1.0,
     ):
         """Set the channel configuration of the oscilloscope.
-        
+
         Sniffed Hexstr
         --------------
         3a4d000000064d434800700063007600 # this might be wrong or for turning channel on/off or something
-        
+
         Parameters
         ----------
         channel : int
@@ -334,7 +318,7 @@ class P1255:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.CHANNEL_COUPLING.keys())}.")
         if voltbase_V not in cm.VOLTBASE:
             raise ValueError(f"Invalid voltbase. Must be one of {list(cm.VOLTBASE.keys())}.")
-        
+
         cmd = (
             hexstr("MCH")
             + cm.CHANNEL[channel]
@@ -346,10 +330,10 @@ class P1255:
             + cm.VOLTBASE[voltbase_V]
         )
         self.send_modify_command(cmd)
-        
+
     def set_memdepth(self, depth: str):
         """Set the memory depth of the oscilloscope.
-        
+
         Parameters
         ----------
         depth : str
@@ -359,12 +343,12 @@ class P1255:
             raise ValueError(f"Invalid memory depth. Must be one of {list(cm.MEMDEPTH.keys())}.")
         if depth not in cm.VALID_MEMDEPTH:
             print(f"Warning: Memory depth {depth} might not work properly. Recommended depths are {cm.VALID_MEMDEPTH}.")
-        
+
         self.send_scpi_command(f":ACQuire:MDEPth {depth}")
-        
+
     def get_memdepth(self) -> str:
         """Get the current memory depth of the oscilloscope.
-        
+
         Returns
         -------
         depth : str
@@ -375,11 +359,11 @@ class P1255:
         if response not in cm.RESPONSE_MEMDEPTH:
             raise ValueError(f"Received invalid memory depth: {response}")
         return response
-        
-    
+
 
 def hexstr(ascii):
     return ascii.encode("ASCII").hex()
+
 
 def ascii(hexstr):
     return bytes.fromhex(hexstr).decode("ASCII")
