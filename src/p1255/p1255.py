@@ -602,6 +602,7 @@ class P1255:
         gateway : str
             The gateway address to set.
         """
+        raise NotImplementedError("This function does not work yet.")
         cmd = hexstr("MNT") + cm.network(ip, port, gateway, subnet)
         self.send_modify_command(cmd)
         
@@ -636,6 +637,7 @@ class P1255:
         type : str
             The trigger type. 'SINGLE' or 'ALTERNATE'
         """
+        raise NotImplementedError("This function does not work yet.")
         if coupling not in cm.TRIGGER_COUPLING:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.TRIGGER_COUPLING.keys())}.")
         if mode not in cm.TRIGGER_MODE:
@@ -699,6 +701,7 @@ class P1255:
         voltbase_V : float
             The voltbase in Volts. One of 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10
         """
+        raise NotImplementedError("This function does not work yet.")
         if channel not in cm.CHANNEL:
             raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
         if probe_rate not in cm.PROBERATE:
