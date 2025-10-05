@@ -150,7 +150,7 @@ class MainWindow(QWidget):
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
 
-    def connect_to_ip(selfCONNECTION_HELP):
+    def connect_to_ip(self):
         if self.use_alias:
             alias = self.alias_combo.currentText()
             ip, port = self.aliases[alias]

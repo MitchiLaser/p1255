@@ -159,7 +159,7 @@ class P1255:
         BMP
             The interpreted BMP data.
         """
-        self.send_scpi_command(constants.GET_BMP)
+        self.send_scpi_command(cm.GET_BMP)
         data = self.receive_data()
         bmp = BMP(data)
         return bmp
@@ -172,7 +172,7 @@ class P1255:
         Waveform
             The interpreted waveform data.
         """
-        self.send_scpi_command(constants.GET_WAVEFORM)
+        self.send_scpi_command(cm.GET_WAVEFORM)
         data = self.receive_data()
         wf = Waveform(data)
         return wf
@@ -196,7 +196,7 @@ class P1255:
         if memdepth is not None:
             self.set_memdepth(memdepth)
         selected_depth = self.get_memdepth()
-        self.send_scpi_command(constants.GET_DEEP_WAVEFORM)
+        self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
         data = self.receive_data()
         wf = Waveform(data, deep=selected_depth)
         return wf
