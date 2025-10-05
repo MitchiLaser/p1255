@@ -1,27 +1,10 @@
-from . import command_mappings as cm
+from . import commands as cm
 from .data import Waveform, Data, BMP
 import socket
 import struct
 import hexdump
 
 VERBOSE = False
-
-
-SCPI_RESPONSES = [
-    "1K",
-    "10K",
-    "100K",
-    "1M",
-    "10M",
-    "4",
-    "16",
-    "64",
-    "128",
-    "PEAK",
-    "SAMPle",
-    "AVERage",
-]
-
 
 class P1255:
     def __init__(self, ip: str = None, port: int = 3000, timeout: int = 5):
@@ -117,7 +100,7 @@ class P1255:
                 b = self.sock.recv(1)
                 response += b.decode('ascii')
                 response_hex_str += b.hex()
-                if response in SCPI_RESPONSES:
+                if response in cm.SCPI_RESPONSES:
                     break
         except TimeoutError:
             print(response)
@@ -176,7 +159,7 @@ class P1255:
         BMP
             The interpreted BMP data.
         """
-        self.send_scpi_command(cm.GET_BMP)
+        self.send_scpi_command(constants.GET_BMP)
         data = self.receive_data()
         bmp = BMP(data)
         return bmp
@@ -189,7 +172,7 @@ class P1255:
         Waveform
             The interpreted waveform data.
         """
-        self.send_scpi_command(cm.GET_WAVEFORM)
+        self.send_scpi_command(constants.GET_WAVEFORM)
         data = self.receive_data()
         wf = Waveform(data)
         return wf
@@ -213,7 +196,7 @@ class P1255:
         if memdepth is not None:
             self.set_memdepth(memdepth)
         selected_depth = self.get_memdepth()
-        self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
+        self.send_scpi_command(constants.GET_DEEP_WAVEFORM)
         data = self.receive_data()
         wf = Waveform(data, deep=selected_depth)
         return wf

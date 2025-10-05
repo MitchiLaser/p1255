@@ -12,12 +12,11 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import os
 from p1255.p1255 import P1255, Waveform
-from p1255.command_mappings import CONNECTION_HELP, COLORS
+from p1255.constants import CONNECTION_HELP, COLORS
 import ipaddress
 from pathlib import Path
 import yaml
 import importlib.resources
-import numpy as np
 
 
 plt.style.use('dark_background')
@@ -151,7 +150,7 @@ class MainWindow(QWidget):
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
 
-    def connect_to_ip(self):
+    def connect_to_ip(selfCONNECTION_HELP):
         if self.use_alias:
             alias = self.alias_combo.currentText()
             ip, port = self.aliases[alias]

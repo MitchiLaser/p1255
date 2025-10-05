@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from p1255.command_mappings import CONNECTION_HELP
+from p1255.constants import CONNECTION_HELP
 import argparse
 
 

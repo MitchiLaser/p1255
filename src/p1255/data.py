@@ -1,4 +1,5 @@
-from . import command_mappings as cm
+from .constants import COLORS
+from . import commands as cm
 from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +10,7 @@ from PIL import Image
 from io import BytesIO
 import hexdump
 import struct
+import math
 
 
 class Data:
@@ -139,7 +141,7 @@ class Waveform:
             self.unknown_3 = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_4 = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_5 = struct.unpack('<i', self.data.pop(4))[0]
-            self.total_time_s = cm.calc_timescale(self.data.pop(1)[0])
+            self.total_time_s = self.calc_timescale(self.data.pop(1)[0])
             self.unknown_6 = self.data.pop(3) # im guessing these 3 belong to the above timescale
             self.offset_subdiv = struct.unpack("<i", self.data.pop(4))[0]
             self.voltscale_index = self.data.pop(1)[0]
@@ -157,11 +159,34 @@ class Waveform:
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
             if self.memdepth is not None:
-                self.data_screen = cm.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
-                self.data_volt = cm.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_screen = self.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_volt = self.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
             else:
-                self.data_screen = cm.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
-                self.data_volt = cm.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_screen = self.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
+                self.data_volt = self.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+                
+        @staticmethod
+        def normal_to_screen(ch, scale, off):
+            return (ch + off) / 25
+
+        @staticmethod
+        def normal_to_volt(ch, scale, off):
+            return ch * scale / 25 # I would say this is correct
+
+        @staticmethod
+        def deep_to_volt(ch, scale, off):
+            return scale * (ch /2**8 - off) / 25
+
+        @staticmethod
+        def deep_to_screen(ch, scale, off):
+            return (ch / 2**8) / 25
+        
+        @staticmethod
+        def calc_timescale(number):
+            exp = math.floor(number / 3)
+            mant = {0: 1, 1: 2, 2: 5}[number % 3]
+            time_per_div = mant * (10 ** exp)
+            return 15 * time_per_div * 1e-9  # times 15 divisions on the screen, convert from nanoseconds to seconds
 
     def __init__(self, data: Data, memdepth: str = None):
         self.data = data
@@ -310,7 +335,7 @@ class Waveform:
                 ax.plot(x,
                         ch.data_screen, 
                         label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz",
-                        color=cm.COLORS[ch.name]
+                        color=COLORS[ch.name]
                         )
 
             ax.set_ylim(-5, 5)
@@ -345,6 +370,8 @@ loc='left'
             
             plt.tight_layout()
             plt.show()
+    
+
             
             
 class BMP:
