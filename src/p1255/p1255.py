@@ -3,6 +3,8 @@ from .data import Waveform, Data, BMP
 import socket
 import struct
 import hexdump
+from tqdm import tqdm
+
 
 VERBOSE = False
 
@@ -113,7 +115,7 @@ class P1255:
         self.waiting_for_response = False
         return response
 
-    def receive_data(self) -> Data:
+    def receive_data(self, show_progress: bool = False) -> Data:
         """Receive data from the oscilloscope.
         
         Returns
@@ -133,16 +135,15 @@ class P1255:
             self.disconnect()
             raise e
         length = struct.unpack("<I", length_buffer)[0] + 8 # Wtf are these 8
-        if VERBOSE:
-            print(f"Expecting {length} bytes of data.")
         
         received = 0
         data_buffer = bytearray(length)
+        progress_bar = tqdm(total=length, unit="B", unit_scale=True, disable=not show_progress)
         try:
             while received < length:
                 received += self.sock.recv_into(memoryview(data_buffer)[received:])
-                if VERBOSE:
-                    print(f"Received {received}/{length} bytes of data.")
+                progress_bar.update(received - progress_bar.n)
+            progress_bar.close()
         except OSError as e:
             self.disconnect()
             raise e
@@ -151,7 +152,7 @@ class P1255:
         return data
 
     
-    def get_bmp(self) -> BMP:
+    def get_bmp(self, show_progress: bool = False) -> BMP:
         """Get the BMP screenshot from the oscilloscope.
 
         Returns
@@ -160,11 +161,11 @@ class P1255:
             The interpreted BMP data.
         """
         self.send_scpi_command(cm.GET_BMP)
-        data = self.receive_data()
+        data = self.receive_data(show_progress=show_progress)
         bmp = BMP(data)
         return bmp
 
-    def get_waveform(self) -> Waveform:
+    def get_waveform(self, show_progress: bool = False) -> Waveform:
         """Get the waveform data from the oscilloscope.
         
         Returns
@@ -176,9 +177,9 @@ class P1255:
         data = self.receive_data()
         wf = Waveform(data)
         return wf
-        
-    
-    def get_deep_waveform(self, memdepth = None) -> Waveform:
+
+
+    def get_deep_waveform(self, memdepth = None, show_progress: bool = False) -> Waveform:
         """Get the deep waveform data from the oscilloscope.
 
         Parameters
@@ -197,8 +198,8 @@ class P1255:
             self.set_memdepth(memdepth)
         selected_depth = self.get_memdepth()
         self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
-        data = self.receive_data()
-        wf = Waveform(data, deep=selected_depth)
+        data = self.receive_data(show_progress=show_progress)
+        wf = Waveform(data, memdepth=selected_depth)
         return wf
         
     def set_ip_configuration(
@@ -371,7 +372,7 @@ class P1255:
         """
         self.send_scpi_command(":ACQuire:MDEPth?")
         response = self.receive_scpi_response()
-        if response not in cm.MEMDEPTH:
+        if response not in cm.RESPONSE_MEMDEPTH:
             raise ValueError(f"Received invalid memory depth: {response}")
         return response
         
