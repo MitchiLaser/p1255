@@ -57,22 +57,22 @@ class Waveform:
             self.unknown_3: int = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_4: int = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_5: int = struct.unpack('<i', self.data.pop(4))[0]
-            self.timescale_index: int = struct.unpack("<i", self.data.pop(4))[0]
+            self.timebase_index: int = struct.unpack("<i", self.data.pop(4))[0]
             self.offset_subdiv: int = struct.unpack("<i", self.data.pop(4))[0]
             self.voltscale_index: int = struct.unpack("<i", self.data.pop(4))[0]
-            self.unknown_8: bytes = self.data.pop(8)
+            self.unknown_6: bytes = self.data.pop(8)
             self.frequency: float = struct.unpack("<f", self.data.pop(4))[0]
             self.maybe_period_us: float = struct.unpack('<f', self.data.pop(4))[0]
-            self.unknown_10: float = struct.unpack('<f', self.data.pop(4))[0]
+            self.unknown_7: float = struct.unpack('<f', self.data.pop(4))[0]
             self.data_raw: np.ndarray = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
 
             assert len(self.data) == 0, "Did not consume all data for channel!"
 
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
-            self.total_time_s = self.calc_timescale(self.timescale_index)
-            self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
-            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index]  # in Volts/Div
+            self.timebase_us_per_div = cm.TIMEBASELIST[self.timebase_index]  # in microseconds per division
+            self.total_time_s = self.timebase_us_per_div * 15 * 1e-6  # total time in seconds (15 divisions on the screen)
+            self.voltscale = cm.VOLTBASELIST[self.voltscale_index]  # in Volts/Div
             
             if self.memdepth is not None:
                 self.data_screen = self.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
@@ -97,12 +97,6 @@ class Waveform:
         def deep_to_screen(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
             return (ch / 2**8) / 25
 
-        @staticmethod
-        def calc_timescale(number: int) -> float:
-            exp = math.floor(number / 3)
-            mant = {0: 1, 1: 2, 2: 5}[number % 3]
-            time_per_div = mant * (10**exp)
-            return 15 * time_per_div * 1e-9  # times 15 divisions on the screen, convert from nanoseconds to seconds
 
     def __init__(self, data: Data, memdepth: str = None):
         self.data = data

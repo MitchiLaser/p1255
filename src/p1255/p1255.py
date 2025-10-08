@@ -330,6 +330,20 @@ class P1255:
             + cm.VOLTBASE[voltbase_V]
         )
         self.send_modify_command(cmd)
+        
+    def set_timebase(self, timebase: float):
+        """Set the timebase of the oscilloscope.
+
+        Parameters
+        ----------
+        timebase : float
+            The timebase in microseconds.
+        """
+        if timebase not in cm.TIMEBASE:
+            raise ValueError(f"Invalid timebase. Must be one of {list(cm.TIMEBASE.keys())}.")
+
+        cmd = hexstr("MHR") + hexstr('b') + cm.TIMEBASE[timebase]
+        self.send_modify_command(cmd)
 
     def set_memdepth(self, depth: str):
         """Set the memory depth of the oscilloscope.
