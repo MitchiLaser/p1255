@@ -164,7 +164,7 @@ class Waveform:
                 ax.plot(
                     x,
                     ch.data_screen,
-                    label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz",
+                    label=f"{ch.name:<3} | {ch.voltscale:4.2f}V/Div | Offset: {ch.offset_subdiv:3} Div | Freq: {ch.frequency:6.2f}Hz | Period: {ch.maybe_period_us:6.2f}us | {ch.timebase_us_per_div:6.2f}us/Div",
                     color=COLORS[ch.name],
                 )
 
@@ -185,7 +185,7 @@ class Waveform:
 
             ax.set_title(
                 f"""Waveform from {self.serial_number}
-Total Time: {self.channels[0].total_time_s * 1e3:.2f} ms
+Trigger Position: {self.trig_pos_us} us
 Samples: {len(self.time)}""",
                 pad=20,
                 loc='left',

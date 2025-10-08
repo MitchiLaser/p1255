@@ -345,6 +345,18 @@ class P1255:
         cmd = hexstr("MHR") + hexstr('b') + cm.TIMEBASE[timebase]
         self.send_modify_command(cmd)
 
+    def set_trigger_position(self, position: float):
+        """Set the trigger position of the oscilloscope.
+
+        Parameters
+        ----------
+        position : float
+            The trigger position in 1/50 divs.
+        """
+        position_bytes = struct.pack("<i", position).hex()
+        cmd = hexstr("MHR") + hexstr('v') + position_bytes
+        self.send_modify_command(cmd)
+
     def set_memdepth(self, depth: str):
         """Set the memory depth of the oscilloscope.
 
