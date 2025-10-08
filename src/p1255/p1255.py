@@ -251,7 +251,6 @@ class P1255:
         type : str
             The trigger type. 'SINGLE' or 'ALTERNATE'
         """
-        raise NotImplementedError("This function does not work yet.")
         if coupling not in cm.TRIGGER_COUPLING:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.TRIGGER_COUPLING.keys())}.")
         if mode not in cm.TRIGGER_MODE:
@@ -284,52 +283,49 @@ class P1255:
             + cm.trigger_voltage(level)
         )
         self.send_modify_command(cmd)
-
-    def set_channel_configuration(
+        
+    def set_channel_on(
         self,
         channel: int,
-        probe_rate: int = 1,
         coupling: str = "DC",
-        voltbase_V: float = 1.0,
+        voltbase: float = 1.0,
+        offset: int = 0,
+        proberate: int = 1,
+        invert: bool = False,
+        b: int = 0,
     ):
-        """Set the channel configuration of the oscilloscope.
-
-        Sniffed Hexstr
-        --------------
-        3a4d000000064d434800700063007600 # this might be wrong or for turning channel on/off or something
-
-        Parameters
-        ----------
-        channel : int
-            The channel to configure. 1 or 2
-        probe_rate : int
-            The probe rate. One of 1, 10, 100, 1000
-        coupling : str
-            The coupling mode. One of 'DC', 'AC', 'GND'
-        voltbase_V : float
-            The voltbase in Volts. One of 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10
-        """
-        raise NotImplementedError("This function does not work yet.")
+        """Turn on a channel with the given settings."""
         if channel not in cm.CHANNEL:
             raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
-        if probe_rate not in cm.PROBERATE:
-            raise ValueError(f"Invalid probe rate. Must be one of {list(cm.PROBERATE.keys())}.")
         if coupling not in cm.CHANNEL_COUPLING:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.CHANNEL_COUPLING.keys())}.")
-        if voltbase_V not in cm.VOLTBASE:
+        if voltbase not in cm.VOLTBASE:
             raise ValueError(f"Invalid voltbase. Must be one of {list(cm.VOLTBASE.keys())}.")
-
-        cmd = (
-            hexstr("MCH")
-            + cm.CHANNEL[channel]
-            + hexstr("p")
-            + cm.PROBERATE[probe_rate]
-            + hexstr("c")
-            + cm.CHANNEL_COUPLING[coupling]
-            + hexstr("v")
-            + cm.VOLTBASE[voltbase_V]
-        )
+        if proberate not in cm.PROBERATE:
+            raise ValueError(f"Invalid proberate. Must be one of {list(cm.PROBERATE.keys())}.")
+        cmd = hexstr("MCH") + cm.CHANNEL[channel] + hexstr("o") + "01"
+        cmd += cm.channel_coupling(channel, coupling)
+        cmd += cm.channel_voltbase(channel, voltbase)
+        cmd += cm.channel_offset(channel, offset)
+        cmd += cm.channel_proberate(channel, proberate)
+        cmd += cm.channel_invert(channel, invert)
+        cmd += cm.channel_b(channel, b)
         self.send_modify_command(cmd)
+        
+    def set_channel_off(self, channel: int):
+        """Turn off a channel."""
+        if channel not in cm.CHANNEL:
+            raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
+        cmd = hexstr("MCH") + cm.CHANNEL[channel] + hexstr("o") + "00"
+        self.send_modify_command(cmd)
+        
+    def set_channel_parameter(self, channel: int, parameter: str, value):
+        if parameter not in cm.CHANNEL_PARAMS:
+            raise ValueError(f"Invalid channel parameter. Must be one of {list(cm.CHANNEL_PARAMS.keys())}.")
+        cmd = cm.CHANNEL_PARAMS[parameter](channel, value)
+        self.send_modify_command(cmd)
+
+        
         
     def set_timebase(self, timebase: float):
         """Set the timebase of the oscilloscope.

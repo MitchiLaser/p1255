@@ -88,8 +88,144 @@ TIMEBASE = { # in us/div? # from 1ns to 100s
 TIMEBASELIST = list(TIMEBASE.keys())
 
 
+def channel_coupling(channel: int, coupling: str) -> str:
+    """Convert channel coupling settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    coupling : str
+        The coupling type ('DC', 'AC', 'GND').
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel coupling.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    if coupling not in CHANNEL_COUPLING:
+        raise ValueError(f"Coupling must be one of {list(CHANNEL_COUPLING.keys())}.")
+    
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("c") + CHANNEL_COUPLING[coupling]
+
+def channel_voltbase(channel: int, voltbase: float) -> str:
+    """Convert channel voltage base settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    voltbase : float
+        The voltage base in volts per division.
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel voltage base.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    if voltbase not in VOLTBASE:
+        raise ValueError(f"Voltbase must be one of {list(VOLTBASE.keys())}.")
+    
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("v") + VOLTBASE[voltbase]
+
+def channel_offset(channel: int, offset: int) -> str:
+    """Convert channel offset settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    offset : int
+        The offset in 1/25 of a division
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel offset.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("o") + struct.pack(">i", offset).hex()
+
+def channel_proberate(channel: int, proberate: int) -> str:
+    """Convert channel probe rate settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    proberate : int
+        The probe rate
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel probe rate.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    if proberate not in PROBERATE:
+        raise ValueError(f"Proberate must be one of {list(PROBERATE.keys())}.")
+    
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("p") + PROBERATE[proberate]
+
+def channel_invert(channel: int, invert: bool) -> str:
+    """Convert channel invert settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    invert : bool
+        Whether to invert the channel (True) or not (False).
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel invert setting.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    inv = "01" if invert else "00"
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("i") + inv
+
+def channel_b(channel: int, b: int) -> str:
+    """Convert channel B settings to the corresponding hex string.
+    
+    Parameters
+    ----------
+    channel : int
+        The channel number.
+    b : int
+        Dont know what this does
+        
+    Returns
+    -------
+    str
+        The corresponding hex string for the channel B setting.
+    """
+    if channel not in CHANNEL:
+        raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
+    return hexstr("MCH") + CHANNEL[channel] + hexstr("b") + struct.pack(">i", b).hex()
+
+CHANNEL_PARAMS = {
+    'coupling': channel_coupling,
+    'voltbase': channel_voltbase,
+    'offset': channel_offset,
+    'proberate': channel_proberate,
+    'invert': channel_invert,
+    'b': channel_b
+}
+
+
 def trigger_voltage(voltage: float) -> str:
     """Convert a trigger voltage to the corresponding hex string.
+    
+    TODO it might be that it has to be set in 1/25 of a division
     
     Trigger Voltages can be set in steps of 40mV from -7V to +5V.
     The entered voltage is rounded to the nearest valid value.
@@ -148,3 +284,7 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
     port = port.to_bytes(4, byteorder='big').hex()
 
     return ip + port + mask + gateway
+
+
+def hexstr(ascii):
+    return ascii.encode("ASCII").hex()
