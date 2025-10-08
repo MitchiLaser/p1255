@@ -216,7 +216,6 @@ class P1255:
         gateway : str
             The gateway address to set.
         """
-        raise NotImplementedError("This function does not work yet.")
         cmd = hexstr("MNT") + cm.network(ip, port, gateway, subnet)
         self.send_modify_command(cmd)
 
