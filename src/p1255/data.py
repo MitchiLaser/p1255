@@ -70,9 +70,9 @@ class Waveform:
 
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
+            self.total_time_s = self.calc_timescale(self.timescale_index)
             self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
             self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index]  # in Volts/Div
-            self.total_time_s = self.calc_timescale(self.timescale_index)
             
             if self.memdepth is not None:
                 self.data_screen = self.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
