@@ -157,88 +157,9 @@ class Waveform:
             df = pd.DataFrame({'Time': self.time, **self.data_volt})
             df.to_csv(path.with_name(f"{path.stem}.csv"), index=False)
         elif fmt == 'yaml':
-            all = {
-                '?1': self.unknown_1.hex(),
-                '?2': self.unknown_2.hex(),
-                'Serial Number': self.serial_number,
-                '?3': self.unknown_3.hex(),
-                '?4': self.unknown_4.hex(),
-                'trig_pos_us': self.trig_pos_us,
-                'memdepth': self.memdepth,
-                'Channels': {
-                    ch.name: {
-                        '?1': ch.unknown_1.hex(),
-                        '?2': ch.unknown_2,
-                        '?3': ch.unknown_3,
-                        '?4': ch.unknown_4,
-                        '?5': ch.unknown_5,
-                        'Total Time (s)': ch.total_time_s,
-                        '?6': ch.unknown_6.hex(),
-                        'Offset (subdiv)': ch.offset_subdiv,
-                        'Voltscale Index': ch.voltscale_index,
-                        '?7': ch.unknown_7.hex(),
-                        '?8': ch.unknown_8.hex(),
-                        'Frequency (Hz)': ch.frequency,
-                        '?9': ch.unknown_9,
-                        '?10': ch.unknown_10,
-                        'Sample Time (ns)': ch.sample_time_ns,
-                        'Data Screen (subdiv)': ch.data_screen.tolist(),
-                        'Data Volt (V)': ch.data_volt.tolist(),
-                    }
-                    for ch in self.channels
-                },
-            }
-            with open(path.with_name(f"{path.stem}.yaml"), 'w') as f:
-                yaml.dump(all, f)
+            raise NotImplementedError("YAML saving is not implemented yet.")
         else:
             raise ValueError("Format must be 'csv' or 'yaml'.")
-
-    def debug(self) -> None:
-        """Print all available info gathered from the waveform."""
-
-        def small_hexdump(data: bytes) -> None:
-            print(data.hex(sep=" ", bytes_per_sep=1))
-            print(data.decode('ascii', errors='replace'))
-
-        print("Waveform Info")
-        print("-------------")
-        print("Unknown 1:")
-        small_hexdump(self.unknown_1)
-        print("Unknown 2:")
-        small_hexdump(self.unknown_2)
-        print(f"Serial Number: {self.serial_number}")
-        print("Unknown 3:")
-        small_hexdump(self.unknown_3)
-        print(f"Number of Channels: {self.n_channels}")
-        print(f"Trigger Position: {self.trig_pos_us} us")
-        print("Unknown 4:")
-        small_hexdump(self.unknown_4)
-        print(f"Memory Depth: {self.memdepth}")
-        print()
-        for i, ch in enumerate(self.channels):
-            print(f"Channel {i + 1} Info")
-            print("----------------")
-            print(f"Name: {ch.name}")
-            print("Unknown 1:")
-            small_hexdump(ch.unknown_1)
-            print(f"Unknown 2: {ch.unknown_2}")
-            print(f"Unknown 3: {ch.unknown_3}")
-            print(f"Unknown 4: {ch.unknown_4}")
-            print(f"Unknown 5: {ch.unknown_5}")
-            print(f"Total Time: {ch.total_time_s} s")
-            print("Unknown 6:")
-            small_hexdump(ch.unknown_6)
-            print(f"Offset: {ch.offset_subdiv} subdivisions")
-            print(f"Voltscale Index: {ch.voltscale_index} ({ch.voltscale} V/Div)")
-            print("Unknown 7:")
-            small_hexdump(ch.unknown_7)
-            print("Unknown 8:")
-            small_hexdump(ch.unknown_8)
-            print(f"Frequency: {ch.frequency} Hz")
-            print(f"Unknown 9: {ch.unknown_9}")
-            print(f"Unknown 10: {ch.unknown_10}")
-            print(f"Data Points: {len(ch.data_raw)}")
-            print()
 
     def plot(self) -> None:
         """Plot the waveform data."""
