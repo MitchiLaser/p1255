@@ -12,21 +12,16 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import os
 from p1255.p1255 import P1255, Waveform
-from p1255.command_mappings import CONNECTION_HELP
+from p1255.constants import CONNECTION_HELP, COLORS
 import ipaddress
 from pathlib import Path
 import yaml
 import importlib.resources
-import numpy as np
 
 
 plt.style.use('dark_background')
 
 ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
-COLORS = {
-    "CH1": 'red',
-    "CH2": 'yellow',
-}
 
 
 class PlotWidget(FigureCanvas):
@@ -40,10 +35,8 @@ class PlotWidget(FigureCanvas):
 
         Parameters
         ----------
-        wf_dict : dict
-            The waveform dictionary containing channel data.
-        channels : list
-            The list of channels to plot.
+        wf : Waveform
+            The waveform data to plot.
         unit : str
             The unit to plot ('Voltage' or 'Divisions').
         mode : str
@@ -54,7 +47,7 @@ class PlotWidget(FigureCanvas):
         if mode not in ('Normal', 'X: Ch1, Y: Ch2', 'X: Ch2, Y: Ch1'):
             raise ValueError("Mode must be 'Normal', 'X: Ch1, Y: Ch2', or 'X: Ch2, Y: Ch1'")
         self.ax.clear()
-        
+
         # get the data in the desired unit
         data = []
         if unit == 'Divisions':
@@ -67,23 +60,21 @@ class PlotWidget(FigureCanvas):
             self.ax.set_ylabel('Voltage (V)')
             for channel in wf.channels:
                 data.append(channel.data_volt)
-                
+
         if not data:
-            self.ax.text(0.5, 0.5, 'No channels in dataset',
-                        ha='center', va='center', transform=self.ax.transAxes)
+            self.ax.text(0.5, 0.5, 'No channels in dataset', ha='center', va='center', transform=self.ax.transAxes)
             self.ax.grid(True, linestyle='--', alpha=0.5)
             self.draw()
             return
-        
+
         if mode == 'Normal':
             self.ax.set_xlabel('Time (s)')
             for i, channel in enumerate(wf.channels):
                 self.ax.plot(wf.time, data[i], label=channel.name, color=COLORS[channel.name])
             self.ax.legend()
-        else: # XY Plot
+        else:  # XY Plot
             if len(wf.channels) < 2:
-                self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2',
-                            ha='center', va='center', transform=self.ax.transAxes)
+                self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2', ha='center', va='center', transform=self.ax.transAxes)
                 self.ax.grid(True, linestyle='--', alpha=0.5)
                 self.draw()
                 return
@@ -94,9 +85,8 @@ class PlotWidget(FigureCanvas):
                 x = data[1]
                 y = data[0]
             self.ax.plot(x, y)
-            
+
         self.ax.grid(True, linestyle='--', alpha=0.5)
-        
 
         self.ax.relim()
         self.ax.autoscale_view()
@@ -106,7 +96,7 @@ class PlotWidget(FigureCanvas):
             if mode != 'Normal':
                 self.ax.xaxis.set_major_locator(MultipleLocator(1))
                 self.ax.set_xlim(-5, 5)
-        
+
         self.draw()
 
 
@@ -138,7 +128,9 @@ class MainWindow(QWidget):
         if self.use_alias:
             self.connection_stack.setCurrentIndex(1)
             self.alias_combo.addItems(self.aliases.keys())
-            self.alias_combo.currentIndexChanged.connect(self.disconnect) # stellt sicher, dass bei Alias Wechsel der Connect Button sich wieder in Default stellt.
+            self.alias_combo.currentIndexChanged.connect(
+                self.disconnect
+            )  # stellt sicher, dass bei Alias Wechsel der Connect Button sich wieder in Default stellt.
         else:
             self.connection_stack.setCurrentIndex(0)
 
@@ -150,9 +142,9 @@ class MainWindow(QWidget):
         self.save_button.clicked.connect(self.save_data)
         self.unit_combo.currentIndexChanged.connect(self.update_current)
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
-        self._xy_popup_active = False #checkt ob schon ein Pop Up da ist
+        self._xy_popup_active = False  # checkt ob schon ein Pop Up da ist
 
-        #self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
+        # self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
 
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
@@ -191,7 +183,9 @@ class MainWindow(QWidget):
             self.stop_updating()
 
     def update_current(self):
-        self.plot_widget.update_plot(self.current_wf, self.unit_combo.currentText(), self.display_mode_combo.currentText())
+        self.plot_widget.update_plot(
+            self.current_wf, self.unit_combo.currentText(), self.display_mode_combo.currentText()
+        )
 
     def start_updating(self):
         self.timer = QTimer()
@@ -202,7 +196,6 @@ class MainWindow(QWidget):
         if self.timer:
             self.timer.stop()
             self.timer = None
-
 
     def capture_single(self):
         try:

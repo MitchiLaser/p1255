@@ -1,20 +1,40 @@
-import math
 import struct
 import ipaddress
 
+
+# strings to send as scpi commands
+# --------------------------------
+# Get Data
 GET_WAVEFORM = "STARTBIN"
 GET_DEEP_WAVEFORM = "STARTMEMDEPTH"
 GET_BMP = "STARTBMP"
 
+# Get Values
+GET_AVERAGE = ":ACQuire:AVERage?"
+GET_TYPE = ":ACQuire:TYPE?"
+GET_MEMDEPTH = ":ACQuire:MDEPth?"
+
+# Responses (since peaktech does not follow SCPI standard here to send the \n)
+RESPONSE_MEMDEPTH = ["1K", "10K", "100K", "1M", "10M"]
+VALID_MEMDEPTH = ["10K", "1M", "10M"]  # only these seem to work
+RESPONSE_TYPE = ["PEAK", "SAMPle", "AVERage"]
+RESPONSE_AVERAGE = ["4", "16", "64", "128"]
+
+SCPI_RESPONSES = RESPONSE_MEMDEPTH + RESPONSE_TYPE + RESPONSE_AVERAGE
+
+
+
+# For building commands
+# ---------------------
 CHANNEL = {1: "00", 2: "01"}
 TRIGGER_COUPLING = {'DC': "00", 'AC': "01", 'HF': "02", 'LF': "03"}
-TRIGGER_MODE = {'Auto': "00", 'Normal': "01", 'Single': "02"}
-TRIGGER_SLOPE = {'Rising': "00", 'Falling': "01"}
+TRIGGER_MODE = {'AUTO': "00", 'NORMAL': "01", 'SINGLE': "02"}
+TRIGGER_SLOPE = {'RISING': "00", 'FALLING': "01"}
 TRIGGER_TYPE = {'SINGLE': 's'.encode('ASCII').hex(),
                 'ALTERNATE': 'a'.encode('ASCII').hex()}
 PROBERATE = {1: "00", 10: "01", 100: "02", 1000: "03"}
 CHANNEL_COUPLING = {'DC': "00", 'AC': "01", 'GND': "02"}
-VOLTBASE = {
+VOLTBASE = { # in V/div
           .002: "00",
           .005: "01",
           .010: "02",
@@ -28,12 +48,6 @@ VOLTBASE = {
          5.   : "0A",
         10.   : "0B"
         }
-
-def calc_timescale(number):
-    exp = math.floor(number / 3)
-    mant = {0: 1, 1: 2, 2: 5}[number % 3]
-    time_per_div = mant * (10 ** exp)
-    return 15 * time_per_div * 1e-9  # times 15 divisions on the screen, convert from nanoseconds to seconds
 
 
 def trigger_voltage(voltage: float) -> str:
@@ -96,17 +110,3 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
     port = port.to_bytes(4, byteorder='big').hex()
 
     return ip + port + mask + gateway
-
-
-
-CONNECTION_HELP = """P1255 Connection Help:
-
-    - Connect the Oscilloscope to a network via a LAN cable.
-    - Press the "utility" button on the oscilloscope.
-    - Press the "H1" button to access the possible menus.
-    - Scroll down to "LAN Set" by rotating the "M" knob.
-    - Press the "M" knob to enter the menu.
-    - Press on the "H2" Button ("Set").
-    - You can use the "F*" buttons and the "M" knob to adjust other settings.
-    - Save the changes and restart to apply them.
-        """

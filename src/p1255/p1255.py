@@ -1,199 +1,21 @@
+from . import commands as cm
+from .data import Waveform, Data, BMP
 import socket
 import struct
-import ipaddress
 import hexdump
-from p1255 import command_mappings as cm
-import numpy as np
-from pathlib import Path
-import pandas as pd
-import yaml
-
-VERBOSE = False
-
-
-SCPI_RESPONSES = [
-    "1K",
-    "10K",
-    "100K",
-    "1M",
-    "10M",
-    "4",
-    "16",
-    "64",
-    "128",
-    "PEAK",
-    "SAMPle",
-    "AVERage",
-]
-
-
-class Data:
-    """A simple class to handle binary data."""
-    def __init__(self, data: bytes):
-        self.data = data
-        
-    def dump(self) -> None:
-        hexdump.hexdump(self.data)
-        
-    def pop(self, length: int) -> bytes:
-        if len(self.data) < length:
-            raise ValueError("Not enough data to pop.")
-        chunk = self.data[:length]
-        self.data = self.data[length:]
-        return chunk
-    
-    def __len__(self) -> int:
-        return len(self.data)
-
-    def copy(self) -> "Data":
-        return Data(self.data)
-    
-    
-class Waveform:
-    """Waveform data structure."""
-    class Channel:
-        """Channel data structure."""
-        def __init__(self, data: Data, deep: bool = False):
-            self.data = data
-            self.deep = deep
-            if self.deep:
-                raise NotImplementedError("Deep waveform not implemented yet.")
-            self.interpret_header()
-            self.calculate_data()
-            
-        def interpret_header(self):
-            """Interpret the channel header.
-            
-            Header structure (in bytes):
-            3: Name (ASCII)
-            24: Unknown
-            1: timescale_index
-            3: Unknown
-            4: offset_subdiv (int32)
-            1: voltscale_index
-            3: Unknown
-            8: Unknown (something with the trigger?)
-            4: frequency (float32)
-            8: Unknown
-            rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
-            """
-            self.name = self.data.pop(3).decode('ascii')
-            self.unknown_1 = self.data.pop(24)
-            self.total_time_s = cm.calc_timescale(self.data.pop(1)[0])
-            self.unknown_2 = self.data.pop(3) # im guessing these 3
-            self.offset_subdiv = struct.unpack("<i", self.data.pop(4))[0]
-            self.voltscale_index = self.data.pop(1)[0]
-            self.unknown_3 = self.data.pop(3)
-            self.unknown_4 = self.data.pop(8).hex() #something with the trigger?
-            self.frequency = struct.unpack("<f", self.data.pop(4))[0]
-            self.unknown_5 = self.data.pop(8).hex()
-            
-            self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data)))) # value in 1/25
-            self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
-        
-        def calculate_data(self):
-            self.data_screen = (self.data_raw + self.offset_subdiv) / 25 # find out this only works for STARTBIN not STARTMEMDEPTH
-            self.data_volt = (self.data_raw / 25) * list(cm.VOLTBASE.keys())[self.voltscale_index]
-            
-    def __init__(self, data: Data, deep: bool = False):
-        self.data = data
-        self.deep = deep
-        self.interpret_header()
-        self.split_channels()
-        self.add_important_info()
-        
-    def interpret_header(self):
-        """Interpret the waveform header.
-        
-        Header structure (in bytes):
-        8: Unknown
-        10: Unknown
-        12: Serial Number (ASCII)
-        19: Unknown
-        1: n_channels (bit count)
-        12: Unknown
-        rest: channel data
-        """
-        self.unknown_1 = self.data.pop(8)
-        self.unknown_2 = self.data.pop(10)
-        self.serial_number = self.data.pop(12).decode('ascii')
-        self.unknown_3 = self.data.pop(19)
-        self.n_channels = self.data.pop(1)[0].bit_count()
-        self.unknown_4 = self.data.pop(12)
-        
-    def split_channels(self):
-        """Split the remaining data into channels."""
-        if self.n_channels is None:
-            raise ValueError("Header must be interpreted before splitting channels.")
-        self.channels = []
-        if len(self.data) % self.n_channels != 0:
-            raise ValueError("Data length is not a multiple of the number of channels.")
-        len_per_channel = len(self.data) // self.n_channels
-        for i in range(self.n_channels):
-            # assume all channels are the same length
-            self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), deep=self.deep))
-            
-    def add_important_info(self):
-        """Add important info from the Channels."""
-        self.data_screen = {ch.name: ch.data_screen for ch in self.channels}
-        self.data_volt = {ch.name: ch.data_volt for ch in self.channels}
-        self.time = np.linspace(start=(-1) * self.channels[0].total_time_s / 2, stop=self.channels[0].total_time_s / 2, num=len(self.channels[0].data_raw), endpoint=True)
-        
-        
-    def save(self, path: Path, fmt='csv') -> None:
-        """Save the waveform data to a file.
-        
-        Parameters
-        ----------
-        path : Path
-            The path to save the file to (without extension).
-        fmt : str
-            The format to save the file in. One of 'csv' or 'yaml'.
-        """
-        if fmt == 'csv':
-            df = pd.DataFrame({'Time': self.time, **self.data_volt})
-            df.to_csv(path.with_name(f"{path.stem}.csv"), index=False)
-        elif fmt == 'yaml':
-            all = {
-                '?1': self.unknown_1.hex(),
-                '?2': self.unknown_2.hex(),
-                'Serial Number': self.serial_number,
-                '?3': self.unknown_3.hex(),
-                '?4': self.unknown_4.hex(),
-                'Channels': {
-                    ch.name: {
-                        '?1': ch.unknown_1.hex(),
-                        'Total Time (s)': ch.total_time_s,
-                        '?2': ch.unknown_2.hex(),
-                        'Offset (subdiv)': ch.offset_subdiv,
-                        'Voltscale Index': ch.voltscale_index,
-                        '?3': ch.unknown_3.hex(),
-                        '?4': ch.unknown_4,
-                        'Frequency (Hz)': ch.frequency,
-                        '?5': ch.unknown_5,
-                        'Sample Time (ns)': ch.sample_time_ns,
-                        'Data Screen (subdiv)': ch.data_screen.tolist(),
-                        'Data Volt (V)': ch.data_volt.tolist(),
-                    } for ch in self.channels
-                }
-            }
-            with open(path.with_name(f"{path.stem}.yaml"), 'w') as f:
-                yaml.dump(all, f)
-        else:
-            raise ValueError("Format must be 'csv' or 'yaml'.")
-
-        
-
+from tqdm import tqdm
 
 
 class P1255:
-    def __init__(self):
+    def __init__(self, ip: str = None, port: int = 3000, timeout: int = 5):
         self.sock = None
         self.waiting_for_response = False
-        
-    def connect(self, ip: str, port: int = 3000, timeout = 5) -> None:
+        if ip is not None:
+            self.connect(ip, port, timeout)
+
+    def connect(self, ip: str, port: int = 3000, timeout=5) -> None:
         """Establish a TCP connection to the oscilloscope.
-        
+
         Parameters
         ----------
         ip : str
@@ -211,17 +33,17 @@ class P1255:
             self.sock.close()
             self.sock = None
             raise e
-        
+
     def disconnect(self) -> None:
         """Close the TCP connection to the oscilloscope."""
         if self.sock:
             self.sock.close()
             self.waiting_for_response = False
             self.sock = None
-            
+
     def send_command(self, command: str) -> None:
         """Send a command to the oscilloscope.
-        
+
         Parameters
         ----------
         command : str
@@ -238,23 +60,27 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
-        
+
     def send_scpi_command(self, command: str) -> None:
         """Send an SCPI command to the oscilloscope.
-        
+
         Parameters
         ----------
         command : str
             The SCPI command to send.
         """
         self.send_command(command.encode('ascii').hex())
-        
+
     def send_modify_command(self, command: str) -> None:
+        """Send a modify command to the oscilloscope.
+
+        For that purpose the command is prefixed with ":M", followed by the length of the command in bytes (as a little-endian 4-byte integer).
+        """
         length = len(command) // 2
-        length_str = struct.pack("<I", length).hex()
-        full_command = hexstr("M:") + length_str + command
+        length_str = struct.pack(">I", length).hex()
+        full_command = hexstr(":M") + length_str + command
         self.send_command(full_command)
-        
+
     def receive_scpi_response(self) -> str:
         """Receive an SCPI response from the oscilloscope.
 
@@ -267,13 +93,19 @@ class P1255:
             raise ConnectionError("Not connected to the oscilloscope.")
         self.waiting_for_response = True
         response = ""
+        response_hex_str = ""
+
         try:
             while True:
-                response += self.sock.recv(1).decode('ascii')
-                if response in SCPI_RESPONSES:
+                b = self.sock.recv(1)
+                response += b.decode('ascii')
+                response_hex_str += b.hex()
+                if response in cm.SCPI_RESPONSES:
                     break
         except TimeoutError:
             print(response)
+            print(response_hex_str)
+            self.waiting_for_response = False
             raise TimeoutError("Timeout while waiting for SCPI response.")
         except OSError as e:
             self.disconnect()
@@ -281,9 +113,9 @@ class P1255:
         self.waiting_for_response = False
         return response
 
-    def receive_data(self) -> Data:
+    def receive_data(self, show_progress: bool = False) -> Data:
         """Receive data from the oscilloscope.
-        
+
         Returns
         -------
         data
@@ -300,17 +132,16 @@ class P1255:
         except OSError as e:
             self.disconnect()
             raise e
-        length = struct.unpack("<I", length_buffer)[0] + 8 # Wtf are these 8
-        if VERBOSE:
-            print(f"Expecting {length} bytes of data.")
-        
+        length = struct.unpack("<I", length_buffer)[0] + 8  # Wtf are these 8
+
         received = 0
         data_buffer = bytearray(length)
+        progress_bar = tqdm(total=length, unit="B", unit_scale=True, disable=not show_progress)
         try:
             while received < length:
                 received += self.sock.recv_into(memoryview(data_buffer)[received:])
-                if VERBOSE:
-                    print(f"Received {received}/{length} bytes of data.")
+                progress_bar.update(received - progress_bar.n)
+            progress_bar.close()
         except OSError as e:
             self.disconnect()
             raise e
@@ -318,25 +149,22 @@ class P1255:
         self.waiting_for_response = False
         return data
 
-    
-    def interpret_bmp(self, data: Data, output: Path) -> dict:
-        """Interpret BMP image data received from the oscilloscope.
-        
-        Parameters
-        ----------
-        data : Data
-            The raw BMP data received from the oscilloscope.
-        output : Path
-            The path to save the BMP file.
-        """
-        unknown = data.pop(8)
-        rest = data.pop(len(data))
-        with open(output, 'wb') as f:
-            f.write(rest)
+    def get_bmp(self, show_progress: bool = False) -> BMP:
+        """Get the BMP screenshot from the oscilloscope.
 
-    def get_waveform(self) -> Waveform:
+        Returns
+        -------
+        BMP
+            The interpreted BMP data.
+        """
+        self.send_scpi_command(cm.GET_BMP)
+        data = self.receive_data(show_progress=show_progress)
+        bmp = BMP(data)
+        return bmp
+
+    def get_waveform(self, show_progress: bool = False) -> Waveform:
         """Get the waveform data from the oscilloscope.
-        
+
         Returns
         -------
         Waveform
@@ -346,43 +174,37 @@ class P1255:
         data = self.receive_data()
         wf = Waveform(data)
         return wf
-        
-    
-    def get_deep_waveform(self) -> Waveform:
+
+    def get_deep_waveform(self, memdepth=None, show_progress: bool = False) -> Waveform:
         """Get the deep waveform data from the oscilloscope.
-        
+
+        Parameters
+        ----------
+        memdepth : str
+            The memory depth to use. One of '1K', '10K', '100K', '1M', '10M'.
+            Although only '10K', '1M' and '10M' seem to work.
+            If None, the current memory depth is used.
+
         Returns
         -------
         Waveform
             The interpreted deep waveform data.
         """
+        if memdepth is not None:
+            self.set_memdepth(memdepth)
+        selected_depth = self.get_memdepth()
         self.send_scpi_command(cm.GET_DEEP_WAVEFORM)
-        data = self.receive_data()
-        wf = Waveform(data, deep=True)
+        data = self.receive_data(show_progress=show_progress)
+        wf = Waveform(data, memdepth=selected_depth)
         return wf
-    
-    
-    def get_bmp(self, output: Path) -> None:
-        """Get a BMP screenshot from the oscilloscope and save it to a file.
-        
-        Parameters
-        ----------
-        output : Path
-            The path to save the BMP file.
-        """
-        self.send_scpi_command(cm.GET_BMP)
-        data = self.receive_data()
-        self.interpret_bmp(data, output)
-        
-    def set_ip_configuration(
-        self, 
-        ip = "192.168.1.72", 
-        port = 3000, 
-        subnet = "255.255.255.0", 
-        gateway = "192.168.1.1"
-        ):
+
+    def set_ip_configuration(self, ip="192.168.1.72", port=3000, subnet="255.255.255.0", gateway="192.168.1.1"):
         """Set the IP configuration of the oscilloscope.
-        
+
+        Sniffed Hexstr
+        --------------
+        3a4d000000134d4e54ac17a74700000bb8c0a80101ffffff00
+
         Parameters
         ----------
         ip : str
@@ -394,20 +216,26 @@ class P1255:
         gateway : str
             The gateway address to set.
         """
-        cmd = cm.network(ip, port, gateway, subnet)
+        raise NotImplementedError("This function does not work yet.")
+        cmd = hexstr("MNT") + cm.network(ip, port, gateway, subnet)
         self.send_modify_command(cmd)
-        
+
     def set_trigger_configuration(
         self,
-        coupling = "DC",
-        mode = "AUTO",
-        slope = "RISING",
-        level = 0,
-        channel = 1,
-        type = "SINGLE",
-        ):
+        coupling="DC",
+        mode="AUTO",
+        slope="RISING",
+        level=0,
+        channel=1,
+        type="SINGLE",
+    ):
         """Set the trigger configuration of the oscilloscope.
-        
+
+        Sniffed Hexstr
+        --------------
+        3a4d0000002e4d545273006502004d545273006503004d545273006504000000014d545273006505004d54527300650600000000
+
+
         Parameters
         ----------
         coupling : str
@@ -423,6 +251,7 @@ class P1255:
         type : str
             The trigger type. 'SINGLE' or 'ALTERNATE'
         """
+        raise NotImplementedError("This function does not work yet.")
         if coupling not in cm.TRIGGER_COUPLING:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.TRIGGER_COUPLING.keys())}.")
         if mode not in cm.TRIGGER_MODE:
@@ -435,12 +264,8 @@ class P1255:
             raise ValueError(f"Invalid trigger type. Must be one of {list(cm.TRIGGER_TYPE.keys())}.")
         if not (-7.0 <= level <= 5.0):
             raise ValueError("Invalid trigger level. Must be between -7V and +5V.")
-        
-        repeating = (
-            hexstr("MTR")
-            + cm.TRIGGER_TYPE[type]
-            + cm.CHANNEL[channel]
-            )
+
+        repeating = hexstr("MTR") + cm.TRIGGER_TYPE[type] + cm.CHANNEL[channel] + hexstr("e")
         cmd = (
             repeating
             + "02"
@@ -459,8 +284,7 @@ class P1255:
             + cm.trigger_voltage(level)
         )
         self.send_modify_command(cmd)
-        
-        
+
     def set_channel_configuration(
         self,
         channel: int,
@@ -469,7 +293,11 @@ class P1255:
         voltbase_V: float = 1.0,
     ):
         """Set the channel configuration of the oscilloscope.
-        
+
+        Sniffed Hexstr
+        --------------
+        3a4d000000064d434800700063007600 # this might be wrong or for turning channel on/off or something
+
         Parameters
         ----------
         channel : int
@@ -481,6 +309,7 @@ class P1255:
         voltbase_V : float
             The voltbase in Volts. One of 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10
         """
+        raise NotImplementedError("This function does not work yet.")
         if channel not in cm.CHANNEL:
             raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
         if probe_rate not in cm.PROBERATE:
@@ -489,7 +318,7 @@ class P1255:
             raise ValueError(f"Invalid coupling mode. Must be one of {list(cm.CHANNEL_COUPLING.keys())}.")
         if voltbase_V not in cm.VOLTBASE:
             raise ValueError(f"Invalid voltbase. Must be one of {list(cm.VOLTBASE.keys())}.")
-        
+
         cmd = (
             hexstr("MCH")
             + cm.CHANNEL[channel]
@@ -501,11 +330,40 @@ class P1255:
             + cm.VOLTBASE[voltbase_V]
         )
         self.send_modify_command(cmd)
-        
-    
+
+    def set_memdepth(self, depth: str):
+        """Set the memory depth of the oscilloscope.
+
+        Parameters
+        ----------
+        depth : str
+            The memory depth. One of '1K', '10K', '100K', '1M', '10M'
+        """
+        if depth not in cm.MEMDEPTH:
+            raise ValueError(f"Invalid memory depth. Must be one of {list(cm.MEMDEPTH.keys())}.")
+        if depth not in cm.VALID_MEMDEPTH:
+            print(f"Warning: Memory depth {depth} might not work properly. Recommended depths are {cm.VALID_MEMDEPTH}.")
+
+        self.send_scpi_command(f":ACQuire:MDEPth {depth}")
+
+    def get_memdepth(self) -> str:
+        """Get the current memory depth of the oscilloscope.
+
+        Returns
+        -------
+        depth : str
+            The current memory depth.
+        """
+        self.send_scpi_command(":ACQuire:MDEPth?")
+        response = self.receive_scpi_response()
+        if response not in cm.RESPONSE_MEMDEPTH:
+            raise ValueError(f"Received invalid memory depth: {response}")
+        return response
+
 
 def hexstr(ascii):
     return ascii.encode("ASCII").hex()
+
 
 def ascii(hexstr):
     return bytes.fromhex(hexstr).decode("ASCII")
