@@ -14,6 +14,13 @@ GET_AVERAGE = ":ACQuire:AVERage?"
 GET_TYPE = ":ACQuire:TYPE?"
 GET_MEMDEPTH = ":ACQuire:MDEPth?"
 
+# Other
+REBOOT = ":SDSLRST#"
+AUTOSET = ":SDSLAUT#"
+FORCE_TRIGGER = ":SDSLFOR#"
+TRIGGER_LVL_0 = ":SDSLTL0#"
+TRIGGER_LVL_50 = ":SDSLF50#"
+
 # Responses (since peaktech does not follow SCPI standard here to send the \n)
 RESPONSE_MEMDEPTH = ["1K", "10K", "100K", "1M", "10M"]
 VALID_MEMDEPTH = ["10K", "1M", "10M"]  # only these seem to work

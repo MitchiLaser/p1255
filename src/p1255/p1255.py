@@ -381,6 +381,26 @@ class P1255:
         if response not in cm.RESPONSE_MEMDEPTH:
             raise ValueError(f"Received invalid memory depth: {response}")
         return response
+    
+    def reboot(self):
+        """Reboot the oscilloscope."""
+        self.send_scpi_command(cm.REBOOT)
+        
+    def autoset(self):
+        """Perform an autoset on the oscilloscope."""
+        self.send_scpi_command(cm.AUTOSET)
+        
+    def force_trigger(self):
+        """Force a trigger on the oscilloscope."""
+        self.send_scpi_command(cm.FORCE_TRIGGER)
+        
+    def set_trigger_lvl_0(self):
+        """Set the trigger level to 0V."""
+        self.send_scpi_command(cm.TRIGGER_LVL_0)
+        
+    def set_trigger_lvl_50(self):
+        """Set the trigger level to 50%."""
+        self.send_scpi_command(cm.TRIGGER_LVL_50)
 
 
 def hexstr(ascii):
