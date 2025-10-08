@@ -39,31 +39,7 @@ class Data:
 
 
 class Waveform:
-    """Waveform data structure.
-
-    Attributes
-    ----------
-    unknown_1 : bytes
-        Unknown data from the header.
-    unknown_2 : bytes
-        Unknown data from the header.
-    serial_number : str
-        The serial number of the oscilloscope.
-    unknown_3 : bytes
-        Unknown data from the header.
-    n_channels : int
-        The number of channels in the waveform.
-    unknown_4 : bytes
-        Unknown data from the header.
-    channels : list of Channel
-        The channels in the waveform.
-    data_screen : dict
-        The screen data for each channel (in divisions).
-    data_volt : dict
-        The voltage data for each channel (in Volts).
-    time : np.ndarray
-        The time data (in seconds).
-    """
+    """Waveform data structure."""
 
     class Channel:
         """Channel data structure."""
@@ -71,53 +47,33 @@ class Waveform:
         def __init__(self, data: Data, memdepth: str = None):
             self.data = data
             self.memdepth = memdepth
-            self.interpret_header()
+            self.read_in_data()
             self.calculate_data()
 
-        def interpret_header(self):
-            """Interpret the channel header.
-
-            Header structure (in bytes):
-            3: Name (ASCII)
-            8: Unknown
-            4: Unknown (int32) - might be pre trigger samples
-            4: Unknown (int32) - might be post trigger samples
-            4: Unknown (int32) - might be total samples of ch1
-            4: Unknown (int32) - might be total samples of ch2
-            1: timescale_index
-            3: Unknown
-            4: offset_subdiv (int32)
-            1: voltscale_index
-            3: Unknown
-            8: Unknown (something with the trigger?)
-            4: frequency (float32)
-            4: Unknown (float32) - not sure that this is float32, might be again frequency? (Maybe one is trigger frequency?)
-            4: Unknown (float32) - not sure that this is float32, it changes when changing the voltscale
-            rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
-            """
+        def read_in_data(self):
             self.name = self.data.pop(3).decode('ascii')
             self.unknown_1: bytes = self.data.pop(8)
             self.unknown_2: int = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_3: int = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_4: int = struct.unpack('<i', self.data.pop(4))[0]
             self.unknown_5: int = struct.unpack('<i', self.data.pop(4))[0]
-            self.total_time_s: float = self.calc_timescale(self.data.pop(1)[0])
-            self.unknown_6: bytes = self.data.pop(3)
+            self.timescale_index: int = struct.unpack("<i", self.data.pop(4))[0]
             self.offset_subdiv: int = struct.unpack("<i", self.data.pop(4))[0]
-            self.voltscale_index: int = self.data.pop(1)[0]
-            self.unknown_7: bytes = self.data.pop(3)
+            self.voltscale_index: int = struct.unpack("<i", self.data.pop(4))[0]
             self.unknown_8: bytes = self.data.pop(8)
             self.frequency: float = struct.unpack("<f", self.data.pop(4))[0]
-            self.unknown_9: float = struct.unpack('<f', self.data.pop(4))[0]
+            self.maybe_period_us: float = struct.unpack('<f', self.data.pop(4))[0]
             self.unknown_10: float = struct.unpack('<f', self.data.pop(4))[0]
+            self.data_raw: np.ndarray = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
 
-            self.data_raw = np.array(struct.unpack("<" + "h" * (len(self.data) // 2), self.data.pop(len(self.data))))
-
-            self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
-            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index]  # in Volts/Div
+            assert len(self.data) == 0, "Did not consume all data for channel!"
 
         def calculate_data(self):
             """Calculate the screen and voltage data from the raw data."""
+            self.sample_time_ns = self.total_time_s / len(self.data_raw) * 1e9
+            self.voltscale = list(cm.VOLTBASE.keys())[self.voltscale_index]  # in Volts/Div
+            self.total_time_s = self.calc_timescale(self.timescale_index)
+            
             if self.memdepth is not None:
                 self.data_screen = self.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = self.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
@@ -131,7 +87,7 @@ class Waveform:
 
         @staticmethod
         def normal_to_volt(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
-            return ch * scale / 25  # I would say this is correct
+            return ch * scale / 25  # I would say this is correct, actually probably use 5/2**8 here instead of 1/25
 
         @staticmethod
         def deep_to_volt(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
@@ -151,22 +107,11 @@ class Waveform:
     def __init__(self, data: Data, memdepth: str = None):
         self.data = data
         self.memdepth = memdepth
-        self.interpret_header()
+        self.read_in_data()
         self.split_channels()
         self.add_important_info()
 
-    def interpret_header(self):
-        """Interpret the waveform header.
-
-        Header structure (in bytes):
-        8: Unknown
-        10: Unknown
-        12: Serial Number (ASCII)
-        19: Unknown
-        1: n_channels (bit count)
-        12: Unknown
-        rest: channel data
-        """
+    def read_in_data(self):
         self.unknown_1: bytes = self.data.pop(8)
         self.unknown_2: int = self.data.pop(10)
         self.serial_number: str = self.data.pop(12).decode('ascii')
@@ -184,6 +129,8 @@ class Waveform:
         for i in range(self.n_channels):
             # assume all channels are the same length
             self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), memdepth=self.memdepth))
+            
+        assert len(self.data) == 0, "Did not consume all data for waveform!"
 
     def add_important_info(self):
         """Add important info from the Channels."""
