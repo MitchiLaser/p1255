@@ -92,7 +92,7 @@ class Waveform:
             8: Unknown (something with the trigger?)
             4: frequency (float32)
             4: Unknown (float32) - not sure that this is float32, might be again frequency? (Maybe one is trigger frequency?)
-            4: Unknown (float32) - not sure that this is float32
+            4: Unknown (float32) - not sure that this is float32, it changes when changing the voltscale
             rest: data (int16) in 1/25 of a subdivision when in STARTBIN mode
             """
             self.name = self.data.pop(3).decode('ascii')
@@ -172,7 +172,8 @@ class Waveform:
         self.serial_number: str = self.data.pop(12).decode('ascii')
         self.unknown_3: bytes = self.data.pop(19)
         self.n_channels: int = self.data.pop(1)[0].bit_count()
-        self.unknown_4: bytes = self.data.pop(12)
+        self.trig_pos_us: float = struct.unpack('<f', self.data.pop(4))[0]
+        self.unknown_4: bytes = self.data.pop(8) # somewhat changes with the vertical offset of the trigger channel
 
     def split_channels(self):
         """Split the remaining data into channels."""
@@ -215,6 +216,7 @@ class Waveform:
                 'Serial Number': self.serial_number,
                 '?3': self.unknown_3.hex(),
                 '?4': self.unknown_4.hex(),
+                'trig_pos_us': self.trig_pos_us,
                 'memdepth': self.memdepth,
                 'Channels': {
                     ch.name: {
@@ -261,6 +263,7 @@ class Waveform:
         print("Unknown 3:")
         small_hexdump(self.unknown_3)
         print(f"Number of Channels: {self.n_channels}")
+        print(f"Trigger Position: {self.trig_pos_us} us")
         print("Unknown 4:")
         small_hexdump(self.unknown_4)
         print(f"Memory Depth: {self.memdepth}")
