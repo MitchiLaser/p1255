@@ -123,7 +123,7 @@ class MainWindow(QWidget):
         self.p1255 = P1255()
         self.wf_dict = None # I think these two are not needed anymore
         self.channels = []
-        
+
         self.current_wf: Waveform | None = None
 
         if Path(ALIAS_FILE).is_file() and not self.disable_aliases:
@@ -225,19 +225,18 @@ class MainWindow(QWidget):
             return
         dialog = QFileDialog(self, "Save Data")
         default_sidebar = dialog.sidebarUrls()
-        
+
         for mount in MOUNTS:
             mount_path = Path(mount)
             if mount_path.is_dir():
                 default_sidebar.append(QUrl.fromLocalFile(str(mount_path)))
         dialog.setSidebarUrls(default_sidebar)
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Data",
-            self.saving_directory,
-            "CSV Files (*.csv);;YAML Files (*.yaml)"
-        )
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        dialog.setNameFilters(["CSV Files (*.csv);;YAML Files (*.yaml)"])
 
+        filename = None
+        if dialog.exec_():
+            filename = dialog.selectedFiles()[0]
         if not filename:
             return
 
