@@ -211,21 +211,32 @@ class MainWindow(QWidget):
             self.toggle_run(False)
             self.disconnect()
 
+
     def save_data(self):
         if not self.current_wf:
             print("No data to save.")
             return
 
-        filename = QFileDialog.getSaveFileName(
-            self, "Save Data", self.saving_directory, "CSV Files (*.csv);;YAML Files (*.yaml)"
-        )[0]
+        filename, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Save Data",
+            self.saving_directory,
+            "CSV Files (*.csv);;YAML Files (*.yaml)"
+        )
         if not filename:
             return
 
-        ext = Path(filename).suffix.lower()
+        path = Path(filename)
+        ext = path.suffix.lower()
+
+        # If no extension is provided, choose .csv by default
+        if not ext:
+            path = path.with_suffix(".csv")
+            ext = ".csv"
+
         fmt = ext.lstrip('.')
         if fmt in ('csv', 'yaml'):
-            self.current_wf.save(Path(filename), fmt=fmt)
+            self.current_wf.save(path, fmt=fmt)
         else:
             QMessageBox.critical(self, "Save Error", f"Unsupported file format: {ext}")
             return
