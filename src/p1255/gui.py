@@ -229,7 +229,7 @@ class MainWindow(QWidget):
         for mount in MOUNTS:
             mount_path = Path(mount)
             if mount_path.is_dir():
-                default_sidebar.append(QUrl.fromLocalFile(mount_path))
+                default_sidebar.append(QUrl.fromLocalFile(mount_path.as_uri()))
         dialog.setSidebarUrls(default_sidebar)
         filename, _ = QFileDialog.getSaveFileName(
             self,
