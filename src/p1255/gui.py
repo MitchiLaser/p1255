@@ -22,6 +22,7 @@ import importlib.resources
 plt.style.use('dark_background')
 
 ALIAS_FILE = Path().home() / ".p1255_ip_aliases.yaml"
+MOUNTS = ["/media/nfs", "/media/data"]
 
 
 class PlotWidget(FigureCanvas):
@@ -220,13 +221,21 @@ class MainWindow(QWidget):
         if not self.current_wf:
             print("No data to save.")
             return
-
-        filename, selected_filter = QFileDialog.getSaveFileName(
+        dialog = QFileDialog(self, "Save Data")
+        default_sidebar = dialog.sidebarUrls()
+        
+        for mount in MOUNTS:
+            mount_path = Path(mount)
+            if mount_path.is_dir():
+                default_sidebar.append(mount_path.as_uri())
+        dialog.setSidebarUrls(default_sidebar)
+        filename, _ = QFileDialog.getSaveFileName(
             self,
             "Save Data",
             self.saving_directory,
             "CSV Files (*.csv);;YAML Files (*.yaml)"
         )
+
         if not filename:
             return
 
