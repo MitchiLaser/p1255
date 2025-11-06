@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
 )
 from PyQt5 import uic
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QUrl
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
@@ -229,7 +229,7 @@ class MainWindow(QWidget):
         for mount in MOUNTS:
             mount_path = Path(mount)
             if mount_path.is_dir():
-                default_sidebar.append(mount_path.as_uri())
+                default_sidebar.append(QUrl.fromLocalFile(mount_path))
         dialog.setSidebarUrls(default_sidebar)
         filename, _ = QFileDialog.getSaveFileName(
             self,
