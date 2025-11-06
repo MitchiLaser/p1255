@@ -65,10 +65,10 @@ To ensure that the software recognizes the file automatically, it must be named 
 
 This `yaml` file contains a list of all available oscilloscopes with the corresponding IP Address and network port. As an Example the file could look like this:
 ```yaml
-"Osc1": ["192.168.0.70", 3000]
-"Osc2": ["192.168.0.71", 3000]
-"Osc3": ["192.168.0.72", 3000]
-"Osc4": ["192.168.0.73", 3000]
+"Oszi1": ["192.168.0.70", 3000]
+"Oszi2": ["192.168.0.71", 3000]
+"Oszi3": ["192.168.0.72", 3000]
+"Oszi4": ["192.168.0.73", 3000]
 ```
 
 *Fig. 3*: Start Screen of the GUI with Drop-down menu .  
