@@ -17,6 +17,9 @@ def gui():
     parser.add_argument(
         "-c", "--customIP", action="store_true", help="Shows the custom IP selection even when alias file was found."
     )
+    parser.add_argument(
+        "-s", "--simulate", action="store_true", help="Uses a simulated source, useful for GUI development."
+    )
     args = parser.parse_args()
 
     app = QApplication(sys.argv)

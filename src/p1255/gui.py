@@ -71,7 +71,12 @@ class PlotWidget(FigureCanvas):
             self.ax.set_xlabel('Time (s)')
             for i, channel in enumerate(wf.channels):
                 self.ax.plot(wf.time, data[i], label=channel.name, color=COLORS[channel.name])
-            self.ax.legend()
+            self.ax.legend(
+                loc='center left',           # position legend relative to bounding box
+                bbox_to_anchor=(1.02, 0.5),  # move it just outside the right edge
+                borderaxespad=0,
+            )
+            self.figure.subplots_adjust(right=0.85)
         else:  # XY Plot
             if len(wf.channels) < 2:
                 self.ax.text(0.5, 0.5, 'XY-Mode needs CH1 & CH2', ha='center', va='center', transform=self.ax.transAxes)
@@ -93,7 +98,7 @@ class PlotWidget(FigureCanvas):
         if unit == 'Divisions':
             self.ax.yaxis.set_major_locator(MultipleLocator(1))
             self.ax.set_ylim(-5, 5)
-            if mode != 'Normal':
+            if mode != 'Normal':  # X-Y Mode: Also set x-axis to divisions
                 self.ax.xaxis.set_major_locator(MultipleLocator(1))
                 self.ax.set_xlim(-5, 5)
 
@@ -210,7 +215,6 @@ class MainWindow(QWidget):
             QMessageBox.critical(self, "Capture Error", f"Failed to capture data: {e}")
             self.toggle_run(False)
             self.disconnect()
-
 
     def save_data(self):
         if not self.current_wf:
