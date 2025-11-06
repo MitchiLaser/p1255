@@ -121,8 +121,10 @@ class MainWindow(QWidget):
         self.saving_directory = os.getcwd()
 
         self.p1255 = P1255()
-        self.wf_dict = None
+        self.wf_dict = None # I think these two are not needed anymore
         self.channels = []
+        
+        self.current_wf: Waveform | None = None
 
         if Path(ALIAS_FILE).is_file() and not self.disable_aliases:
             self.use_alias = True
