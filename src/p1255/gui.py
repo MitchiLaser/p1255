@@ -107,7 +107,7 @@ class PlotWidget(FigureCanvas):
 
 
 class MainWindow(QWidget):
-    def __init__(self, disable_aliases=False, simulate=False):
+    def __init__(self, disable_aliases=False, simulate=False, address=None, port=None):
         super().__init__()
         with importlib.resources.path("p1255", "gui.ui") as ui_file:
             uic.loadUi(ui_file, self)
@@ -158,6 +158,12 @@ class MainWindow(QWidget):
         self.unit_combo.currentIndexChanged.connect(self.update_current)
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
         self._xy_popup_active = False  # checkt ob schon ein Pop Up da ist
+
+        # Set ip address and port if provided by CLI args
+        if address:
+            self.ip_input.setText(str(address))
+        if port:
+            self.port_input.setValue(int(port))
 
         if self.simulate:
             self.capture_single()  # for simulation: Get waveform to display

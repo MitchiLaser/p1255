@@ -20,10 +20,24 @@ def gui():
     parser.add_argument(
         "-s", "--simulate", action="store_true", help="Uses a simulated source, useful for GUI development."
     )
+    parser.add_argument(
+        "-i", "--ip", help="Uses a simulated source, useful for GUI development."
+    )
+    parser.add_argument(
+        "-a", "--address", type=str, help="The IPv4 address of the oscilloscope"
+    )
+    parser.add_argument(
+        "-p", "--port", type=int, help="The port to connect to, default is 3000",
+    )
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    window = MainWindow(disable_aliases=args.customIP, simulate=args.simulate)
+    window = MainWindow(
+        disable_aliases=args.customIP,
+        simulate=args.simulate,
+        address=None if not args.address else args.address,
+        port=None if not args.port else args.port,
+    )
     window.resize(800, 600)
     window.show()
     sys.exit(app.exec_())
