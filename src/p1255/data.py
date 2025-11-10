@@ -10,7 +10,6 @@ from PIL import Image
 from io import BytesIO
 import hexdump
 import struct
-import math
 
 
 class Data:
@@ -44,11 +43,14 @@ class Waveform:
     class Channel:
         """Channel data structure."""
 
-        def __init__(self, data: Data, memdepth: str = None):
+        def __init__(self, data: Data, memdepth: str = None, simulate: bool = False, simulation_mode : int = 0):
             self.data = data
             self.memdepth = memdepth
-            self.read_in_data()
-            self.calculate_data()
+            if not simulate:
+                self.read_in_data()
+                self.calculate_data()
+            else:
+                self.generate_simul_waveform(simulation_mode)
 
         def read_in_data(self):
             self.name = self.data.pop(3).decode('ascii')
@@ -73,13 +75,23 @@ class Waveform:
             self.timebase_us_per_div = cm.TIMEBASELIST[self.timebase_index]  # in microseconds per division
             self.total_time_s = self.timebase_us_per_div * 15 * 1e-6  # total time in seconds (15 divisions on the screen)
             self.voltscale = cm.VOLTBASELIST[self.voltscale_index]  # in Volts/Div
-            
+
             if self.memdepth is not None:
                 self.data_screen = self.deep_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = self.deep_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
             else:
                 self.data_screen = self.normal_to_screen(self.data_raw, self.voltscale, self.offset_subdiv)
                 self.data_volt = self.normal_to_volt(self.data_raw, self.voltscale, self.offset_subdiv)
+
+        def generate_simul_waveform(self, simulation_mode : int):
+            """Generate a simulated dataset for testing porposes"""
+            NUM_SAMPLES = 760
+            self.name = f"CH{simulation_mode}"
+            self.timebase_us_per_div = 1000
+            self.total_time_s = self.timebase_us_per_div * 15 * 1e-6  # total time in seconds (15 divisions on the screen)
+            t = np.linspace(-4, 4, NUM_SAMPLES)
+            self.data_volt = np.sin(np.pi / 2 * t) if simulation_mode == 1 else np.cos(np.pi / 4 * t)
+            self.data_screen = self.data_volt
 
         @staticmethod
         def normal_to_screen(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
@@ -97,13 +109,30 @@ class Waveform:
         def deep_to_screen(ch: np.ndarray, scale: float, off: int) -> np.ndarray:
             return (ch / 2**8) / 25
 
-
-    def __init__(self, data: Data, memdepth: str = None):
+    def __init__(self, data: Data, memdepth: str = None, simulate=False):
         self.data = data
         self.memdepth = memdepth
-        self.read_in_data()
-        self.split_channels()
-        self.add_important_info()
+        if not simulate:
+            self.read_in_data()
+            self.split_channels()
+            self.add_important_info()
+        else:
+            self.generate_simul_waveform()
+
+    def generate_simul_waveform(self):
+        self.channels = [
+            Waveform.Channel(None, simulate=True, simulation_mode=1),
+            Waveform.Channel(None, simulate=True, simulation_mode=2),
+        ]
+        # Add important info - but other Info this time
+        self.data_screen = {ch.name: ch.data_screen for ch in self.channels}
+        self.data_volt = {ch.name: ch.data_volt for ch in self.channels}
+        self.time = np.linspace(
+            start=(-1) * self.channels[0].total_time_s / 2,
+            stop=self.channels[0].total_time_s / 2,
+            num=len(self.channels[0].data_volt),
+            endpoint=True,
+        )
 
     def read_in_data(self):
         self.unknown_1: bytes = self.data.pop(8)
@@ -112,7 +141,7 @@ class Waveform:
         self.unknown_3: bytes = self.data.pop(19)
         self.n_channels: int = self.data.pop(1)[0].bit_count()
         self.trig_pos_us: float = struct.unpack('<f', self.data.pop(4))[0]
-        self.unknown_4: bytes = self.data.pop(8) # somewhat changes with the vertical offset of the trigger channel
+        self.unknown_4: bytes = self.data.pop(8)  # somewhat changes with the vertical offset of the trigger channel
 
     def split_channels(self):
         """Split the remaining data into channels."""
@@ -123,7 +152,7 @@ class Waveform:
         for i in range(self.n_channels):
             # assume all channels are the same length
             self.channels.append(Waveform.Channel(Data(self.data.pop(len_per_channel)), memdepth=self.memdepth))
-            
+
         assert len(self.data) == 0, "Did not consume all data for waveform!"
 
     def add_important_info(self):

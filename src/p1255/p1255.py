@@ -175,6 +175,16 @@ class P1255:
         wf = Waveform(data)
         return wf
 
+    def generate_simul_waveform(self) -> Waveform:
+        """Generate a simulated waveform for testing purposes.
+
+        Returns
+        -------
+        Waveform
+            The simulated waveform data.
+        """
+        return Waveform(None, simulate=True)
+
     def get_deep_waveform(self, memdepth=None, show_progress: bool = False) -> Waveform:
         """Get the deep waveform data from the oscilloscope.
 
@@ -282,7 +292,7 @@ class P1255:
             + cm.trigger_voltage(level)
         )
         self.send_modify_command(cmd)
-        
+
     def set_channel_on(
         self,
         channel: int,
@@ -310,22 +320,22 @@ class P1255:
         cmd += cm.channel_invert(channel, invert)
         cmd += cm.channel_b(channel, b)
         self.send_modify_command(cmd)
-        
+
     def set_channel_off(self, channel: int):
         """Turn off a channel."""
         if channel not in cm.CHANNEL:
             raise ValueError(f"Invalid channel. Must be one of {list(cm.CHANNEL.keys())}.")
         cmd = hexstr("MCH") + cm.CHANNEL[channel] + hexstr("o") + "00"
         self.send_modify_command(cmd)
-        
+
     def set_channel_parameter(self, channel: int, parameter: str, value):
         if parameter not in cm.CHANNEL_PARAMS:
             raise ValueError(f"Invalid channel parameter. Must be one of {list(cm.CHANNEL_PARAMS.keys())}.")
         cmd = cm.CHANNEL_PARAMS[parameter](channel, value)
         self.send_modify_command(cmd)
 
-        
-        
+
+
     def set_timebase(self, timebase: float):
         """Set the timebase of the oscilloscope.
 
@@ -380,23 +390,23 @@ class P1255:
         if response not in cm.RESPONSE_MEMDEPTH:
             raise ValueError(f"Received invalid memory depth: {response}")
         return response
-    
+
     def reboot(self):
         """Reboot the oscilloscope."""
         self.send_scpi_command(cm.REBOOT)
-        
+
     def autoset(self):
         """Perform an autoset on the oscilloscope."""
         self.send_scpi_command(cm.AUTOSET)
-        
+
     def force_trigger(self):
         """Force a trigger on the oscilloscope."""
         self.send_scpi_command(cm.FORCE_TRIGGER)
-        
+
     def set_trigger_lvl_0(self):
         """Set the trigger level to 0V."""
         self.send_scpi_command(cm.TRIGGER_LVL_0)
-        
+
     def set_trigger_lvl_50(self):
         """Set the trigger level to 50%."""
         self.send_scpi_command(cm.TRIGGER_LVL_50)

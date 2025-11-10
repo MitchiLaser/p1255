@@ -107,12 +107,13 @@ class PlotWidget(FigureCanvas):
 
 
 class MainWindow(QWidget):
-    def __init__(self, disable_aliases=False):
+    def __init__(self, disable_aliases=False, simulate=False):
         super().__init__()
         with importlib.resources.path("p1255", "gui.ui") as ui_file:
             uic.loadUi(ui_file, self)
 
         self.disable_aliases = disable_aliases
+        self.simulate = simulate
 
         self.plot_widget = PlotWidget()
         layout = QVBoxLayout(self.plot_placeholder)
@@ -121,7 +122,7 @@ class MainWindow(QWidget):
         self.saving_directory = os.getcwd()
 
         self.p1255 = P1255()
-        self.wf_dict = None # I think these two are not needed anymore
+        self.wf_dict = None  # I think these two are not needed anymore
         self.channels = []
 
         self.current_wf: Waveform | None = None
@@ -142,9 +143,15 @@ class MainWindow(QWidget):
         else:
             self.connection_stack.setCurrentIndex(0)
 
-        self.connect_button.clicked.connect(self.connect_to_ip)
-        self.help_button.setFixedWidth(30)
-        self.help_button.clicked.connect(self.show_help)
+        if self.simulate:
+            self.connect_button.hide()
+            self.connection_stack.hide()
+            self.help_button.clicked.connect(self.show_simulation_info)
+        else:
+            self.connect_button.clicked.connect(self.connect_to_ip)
+            self.help_button.setFixedWidth(30)
+            self.help_button.clicked.connect(self.show_help)
+
         self.run_button.clicked.connect(self.toggle_run)
         self.capture_button.clicked.connect(self.capture_single)
         self.save_button.clicked.connect(self.save_data)
@@ -152,10 +159,18 @@ class MainWindow(QWidget):
         self.display_mode_combo.currentIndexChanged.connect(self.update_current)
         self._xy_popup_active = False  # checkt ob schon ein Pop Up da ist
 
-        # self.capture_single() # so we can see no data but a grid, looks better xD, you can delete this line if you want to
+        if self.simulate:
+            self.capture_single()  # for simulation: Get waveform to display
 
     def show_help(self):
         QMessageBox.information(self, "Help", CONNECTION_HELP)
+
+    def show_simulation_info(self):
+        QMessageBox.information(
+            self,
+            "Simulation Mode",
+            "The application is running in simulation mode. No connection to a real oscilloscope is made.",
+        )
 
     def connect_to_ip(self):
         if self.use_alias:
@@ -206,6 +221,10 @@ class MainWindow(QWidget):
             self.timer = None
 
     def capture_single(self):
+        if self.simulate:
+            self.current_wf = self.p1255.generate_simul_waveform()
+            self.update_current()
+            return
         try:
             if not self.p1255.waiting_for_response:
                 self.current_wf = self.p1255.get_waveform()

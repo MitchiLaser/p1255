@@ -97,14 +97,14 @@ TIMEBASELIST = list(TIMEBASE.keys())
 
 def channel_coupling(channel: int, coupling: str) -> str:
     """Convert channel coupling settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     coupling : str
         The coupling type ('DC', 'AC', 'GND').
-        
+
     Returns
     -------
     str
@@ -114,19 +114,19 @@ def channel_coupling(channel: int, coupling: str) -> str:
         raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
     if coupling not in CHANNEL_COUPLING:
         raise ValueError(f"Coupling must be one of {list(CHANNEL_COUPLING.keys())}.")
-    
+
     return hexstr("MCH") + CHANNEL[channel] + hexstr("c") + CHANNEL_COUPLING[coupling]
 
 def channel_voltbase(channel: int, voltbase: float) -> str:
     """Convert channel voltage base settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     voltbase : float
         The voltage base in volts per division.
-        
+
     Returns
     -------
     str
@@ -136,19 +136,19 @@ def channel_voltbase(channel: int, voltbase: float) -> str:
         raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
     if voltbase not in VOLTBASE:
         raise ValueError(f"Voltbase must be one of {list(VOLTBASE.keys())}.")
-    
+
     return hexstr("MCH") + CHANNEL[channel] + hexstr("v") + VOLTBASE[voltbase]
 
 def channel_offset(channel: int, offset: int) -> str:
     """Convert channel offset settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     offset : int
         The offset in 1/25 of a division
-        
+
     Returns
     -------
     str
@@ -160,14 +160,14 @@ def channel_offset(channel: int, offset: int) -> str:
 
 def channel_proberate(channel: int, proberate: int) -> str:
     """Convert channel probe rate settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     proberate : int
         The probe rate
-        
+
     Returns
     -------
     str
@@ -177,19 +177,19 @@ def channel_proberate(channel: int, proberate: int) -> str:
         raise ValueError(f"Channel must be one of {list(CHANNEL.keys())}.")
     if proberate not in PROBERATE:
         raise ValueError(f"Proberate must be one of {list(PROBERATE.keys())}.")
-    
+
     return hexstr("MCH") + CHANNEL[channel] + hexstr("p") + PROBERATE[proberate]
 
 def channel_invert(channel: int, invert: bool) -> str:
     """Convert channel invert settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     invert : bool
         Whether to invert the channel (True) or not (False).
-        
+
     Returns
     -------
     str
@@ -202,14 +202,14 @@ def channel_invert(channel: int, invert: bool) -> str:
 
 def channel_b(channel: int, b: int) -> str:
     """Convert channel B settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     channel : int
         The channel number.
     b : int
         Dont know what this does
-        
+
     Returns
     -------
     str
@@ -231,17 +231,17 @@ CHANNEL_PARAMS = {
 
 def trigger_voltage(voltage: float) -> str:
     """Convert a trigger voltage to the corresponding hex string.
-    
+
     TODO it might be that it has to be set in 1/25 of a division
-    
+
     Trigger Voltages can be set in steps of 40mV from -7V to +5V.
     The entered voltage is rounded to the nearest valid value.
-    
+
     Parameters
     ----------
     voltage : float
         The trigger voltage in volts.
-        
+
     Returns
     -------
     str
@@ -257,7 +257,7 @@ def trigger_voltage(voltage: float) -> str:
 
 def network(ip: str, port: int, gateway: str, mask: str) -> str:
     """Convert network settings to the corresponding hex string.
-    
+
     Parameters
     ----------
     ip : str
@@ -268,7 +268,7 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
         The gateway address in dotted decimal notation.
     mask : str
         The subnet mask in dotted decimal notation.
-        
+
     Returns
     -------
     str
@@ -283,11 +283,11 @@ def network(ip: str, port: int, gateway: str, mask: str) -> str:
 
     if not (0 <= port <= 65535):
         raise ValueError("Port must be between 0 and 65535.")
-    
+
     ip = ip.packed.hex()
     gateway = gateway.packed.hex()
     mask = mask.packed.hex()
-    
+
     port = port.to_bytes(4, byteorder='big').hex()
 
     return ip + port + mask + gateway

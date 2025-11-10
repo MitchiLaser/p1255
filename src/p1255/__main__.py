@@ -23,14 +23,14 @@ def gui():
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    window = MainWindow(disable_aliases=args.customIP)
+    window = MainWindow(disable_aliases=args.customIP, simulate=args.simulate)
     window.resize(800, 600)
     window.show()
     sys.exit(app.exec_())
 
 
 def cli():
-    from p1255 import p1255  # TODO: Verify
+    from p1255 import p1255
     import ipaddress
 
     parser = argparse.ArgumentParser(
